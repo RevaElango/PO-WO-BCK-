@@ -6,6 +6,7 @@ import schemas, crud
 from models import User  # If needed
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import secrets  # ✅ Secure random token generation
+from fastapi.middleware.cors import CORSMiddleware
 
 #  Store active tokens (simple in-memory session store)
 active_tokens = {}
@@ -15,6 +16,14 @@ security = HTTPBearer()  # Enables Swagger "Authorize" button
 
 app = FastAPI()
 
+# ✅ Allow CORS for frontend (Angular)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ✅ Change to frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ✅ Database Dependency
 def get_db():
     db = SessionLocal()
