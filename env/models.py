@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, Float, DateTime
 from database import Base
 from datetime import datetime
+from sqlalchemy import Text
 
 class User(Base):
     __tablename__ = "users"
@@ -33,5 +34,25 @@ class PurchaseOrder(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+class WorkOrder(Base):
+    __tablename__ = "work_order"
+
+    id = Column(Integer, primary_key=True, index=True)
+    work_order_no = Column(String(100), nullable=False)
+    date = Column(Date, nullable=False)
+    quotation_no = Column(String(100), nullable=False)
+    email = Column(String(255), nullable=False)
+    quotation_date = Column(Date, nullable=False)
+    scope_of_work = Column(String, nullable=False)
+    value_of_service = Column(Integer, nullable=False)
+    tax = Column(Integer, nullable=False)
+    duration_of_service = Column(String, nullable=False)
+    payment_term = Column(String, nullable=False)
+    deliverables = Column(String, nullable=True)        # Optional
+    additional_terms = Column(String, nullable=True)     # Optional
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 
 

@@ -60,3 +60,13 @@ def create_po(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), us
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_pos(db)
+# ✅ Create Work Order
+@app.post("/work-orders/", response_model=schemas.WorkOrder)
+def create_work_order(work_order: schemas.WorkOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return crud.create_work_order(db=db, work_order=work_order)
+
+# ✅ Read All Work Orders
+@app.get("/work-orders/", response_model=List[schemas.WorkOrder])
+def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return crud.get_all_work_orders(db)
+
