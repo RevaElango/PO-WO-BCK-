@@ -34,7 +34,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 # ✅ Token authentication dependency
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
     token = credentials.credentials
@@ -59,7 +58,6 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 def create_po(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.create_po(db=db, po=po)
 
-# ✅ Protected route: Get all Purchase Orders
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_pos(db)
