@@ -130,3 +130,31 @@ class WorkOrder(WorkOrderBase):
     model_config = {
         "from_attributes": True
     }
+# ---------------------------
+# AM Order (Amendment Order) Schemas
+# ---------------------------
+
+class AMOrderBase(BaseModel):
+    date: date
+    company_name: str
+    address: str
+    subject: str
+    quotation_no: str
+    email: EmailStr
+    dated: date
+    existing: str
+    read_as: str
+    additional_items: Optional[str] = None  # <-- Fixed here
+
+
+class AMOrderCreate(AMOrderBase):
+    pass
+
+class AMOrder(AMOrderBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }

@@ -52,7 +52,23 @@ class WorkOrder(Base):
     additional_terms = Column(String, nullable=True)     # Optional
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+class AmendmentOrder(Base):
+    __tablename__ = "amendment_orders"
 
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False)
+    company_name = Column(Text, nullable=False)
+    address = Column(Text, nullable=False)
+    subject = Column(Text, nullable=False)
+    quotation_no = Column(String(100), nullable=False)
+    email = Column(String(100), nullable=False)
+    dated = Column(Date, nullable=False)
+    existing = Column(Text, nullable=False)
+    read_as = Column(Text, nullable=False)
+    additional_items = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 
