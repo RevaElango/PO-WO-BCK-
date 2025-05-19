@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, Header, Security
 from typing import List
-from database import SessionLocal, engine, Base
+import secrets
 import schemas, crud
 from models import User
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -27,6 +27,20 @@ app.add_middleware(
 )
 
 # ✅ Dependency to get DB session
+from models import User  # If needed
+from database import SessionLocal, engine, Base
+
+# ✅ Create DB tables
+Base.metadata.create_all(bind=engine)
+
+# ✅ In-memory token store
+active_tokens = {}
+
+# ✅ FastAPI app and security scheme
+app = FastAPI()
+security = HTTPBearer()  # Enables Swagger "Authorize" button
+
+# ✅ Database dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -80,3 +94,19 @@ def create_work_order(work_order: schemas.WorkOrderCreate, db: Session = Depends
 def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_work_orders(db)
 
+# ✅ 🔐 Authenticated route: Create Amendment Order
+@app.post("/amendment-orders/", response_model=schemas.AMOrder)
+def create_am_order(
+    am_order: schemas.AMOrderCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    return crud.create_am_order(db=db, am_order=am_order)
+
+# ✅ 🔐 Authenticated route: Get Amendment Orders
+@app.get("/amendment-orders/view", response_model=List[schemas.AMOrder])
+def list_am_orders(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    return crud.get_all_am_orders(db)
