@@ -81,8 +81,8 @@ class PurchaseOrder(PurchaseOrderBase):
 class WorkOrderBase(BaseModel):
     work_order_no: str
     date: date
-    quotation_no: str
-    email: EmailStr
+    quotation_no: Optional[str]
+    email: Optional[EmailStr]
     quotation_date: date
     scope_of_work: str
     value_of_service: int
@@ -117,6 +117,11 @@ class WorkOrderBase(BaseModel):
         if v < 0:
             raise ValueError(f"{info.field_name.replace('_', ' ').capitalize()} must be a non-negative number")
         return v
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v):
+        return v or None
 
 
 class WorkOrderCreate(WorkOrderBase):
