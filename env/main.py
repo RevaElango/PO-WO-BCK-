@@ -1,20 +1,20 @@
-from sqlalchemy.orm import Session
-from fastapi import FastAPI, Depends, HTTPException, Header, Security
-from typing import List
-from database import SessionLocal, engine, Base
-import schemas, crud
-from models import User
+from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import secrets
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, timedelta  # ✅ Import for expiration
+from sqlalchemy.orm import Session
+from typing import List
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+import schemas, crud
+from database import SessionLocal, engine, Base
+from models import User
 
-# ✅ In-memory store for active tokens with expiration
-active_tokens = {}
+# Secret key and algorithm
+SECRET_KEY = "your-secret-key"  
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-Base.metadata.create_all(bind=engine)
-security = HTTPBearer()
-
+# FastAPI app
 app = FastAPI()
 security = HTTPBearer()  # Enables Swagger "Authorize" button
 
@@ -27,7 +27,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Dependency to get DB session
+# Database setup
+Base.metadata.create_all(bind=engine)
+
+# Security scheme
+security = HTTPBearer()
+
+# DB session dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -35,19 +41,25 @@ def get_db():
     finally:
         db.close()
 
-# ✅ Token Auth Dependency with Expiration Check
+# JWT creation function
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# Token verification
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
     token = credentials.credentials
-    token_data = active_tokens.get(token)
-    if not token_data:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid token")
-
-    # ✅ Check token expiration
-    if datetime.utcnow() > token_data["expires_at"]:
-        del active_tokens[token]  # Remove expired token
-        raise HTTPException(status_code=401, detail="Token has expired")
-
-    return token_data["user"]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_data = payload.get("user")
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return user_data
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token is invalid or expired")
 
 # ✅ Login Route with Expiration
 @app.post("/login")
@@ -56,13 +68,13 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     if not db_user or db_user.password_hash != user.password:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    token = secrets.token_urlsafe(32)
-    active_tokens[token] = {
-        "user": {"id": db_user.id, "email": db_user.email},
-        "expires_at": datetime.utcnow() + timedelta(minutes=60)  # ✅ Token expires in 60 mins
-    }
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(
+        data={"user": {"id": db_user.id, "email": db_user.email}},
+        expires_delta=access_token_expires,
+    )
 
-    return {"access_token": token, "expires_in_minutes": 60}
+    return {"access_token": token, "token_type": "bearer", "expires_in_minutes": ACCESS_TOKEN_EXPIRE_MINUTES}
 
 # ✅ Protected Endpoints
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
@@ -81,19 +93,14 @@ def create_work_order(work_order: schemas.WorkOrderCreate, db: Session = Depends
 def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_work_orders(db)
 
-# ✅ 🔐 Authenticated route: Create Amendment Order
 @app.post("/amendment-orders/", response_model=schemas.AMOrder)
-def create_am_order(
-    am_order: schemas.AMOrderCreate,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
+def create_am_order(am_order: schemas.AMOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.create_am_order(db=db, am_order=am_order)
 
-# ✅ 🔐 Authenticated route: Get Amendment Orders
 @app.get("/amendment-orders/view", response_model=List[schemas.AMOrder])
-def list_am_orders(
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
+def list_am_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_am_orders(db)
+
+@app.get("/token/ping")
+def ping(current_user: User = Depends(get_current_user)):
+    return {"message": "OK"}
