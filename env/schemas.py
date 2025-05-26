@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, EmailStr, StringConstraints
+from pydantic import BaseModel, field_validator, EmailStr, StringConstraints,model_validator
 from datetime import date, datetime
 from typing import Optional, Annotated
 import re
@@ -149,12 +149,15 @@ class AMOrderBase(BaseModel):
     company_name: str
     address: str
     subject: str
-    quotation_no: str
-    email: EmailStr
-    dated: date
+    category: str
+    category_no: str
+    category_date:date
+    email: Optional[date] = None  # Changed from EmailStr to date
+    letter: Optional[date] = None  # Changed from EmailStr to datesss
+    content_text: str
     existing: str
     read_as: str
-    additional_items: Optional[str] = None  # <-- Fixed here
+    additional_items: Optional[str] = None
 
 
 class AMOrderCreate(AMOrderBase):
