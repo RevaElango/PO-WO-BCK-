@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, Header, Security
 from typing import List
-import secrets
+from database import SessionLocal, engine, Base
 import schemas, crud
 from models import User
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -27,20 +27,6 @@ app.add_middleware(
 )
 
 # ✅ Dependency to get DB session
-from models import User  # If needed
-from database import SessionLocal, engine, Base
-
-# ✅ Create DB tables
-Base.metadata.create_all(bind=engine)
-
-# ✅ In-memory token store
-active_tokens = {}
-
-# ✅ FastAPI app and security scheme
-app = FastAPI()
-security = HTTPBearer()  # Enables Swagger "Authorize" button
-
-# ✅ Database dependency
 def get_db():
     db = SessionLocal()
     try:
