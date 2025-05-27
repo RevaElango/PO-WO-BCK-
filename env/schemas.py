@@ -171,3 +171,9 @@ class AMOrder(AMOrderBase):
     model_config = {
         "from_attributes": True
     }
+
+class DashboardCounts(BaseModel):
+    purchase_orders: int
+    work_orders: int
+    amendment_orders: int
+    total_orders: int
