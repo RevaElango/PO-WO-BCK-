@@ -103,3 +103,8 @@ def list_am_orders(db: Session = Depends(get_db), user: dict = Depends(get_curre
 @app.get("/token/ping")
 def ping(current_user: User = Depends(get_current_user)):
     return {"message": "OK"}
+
+@app.get("/dashboard", response_model=schemas.DashboardCounts)
+def get_dashboard_data(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return crud.get_dashboard_counts(db)
+
