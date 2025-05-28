@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Float, DateTime
+from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean
 from database import Base
 from datetime import datetime
 from sqlalchemy import Text
@@ -31,6 +31,11 @@ class PurchaseOrder(Base):
     payment_terms = Column(String, nullable=False)
     additional_terms = Column(String, nullable=True)
     delivery_mode = Column(String, nullable=False)
+
+     # New fields for Annexure
+    include_annexure = Column(Boolean, default=False)
+    annexure_text = Column(String, nullable=True)
+    annexure_file_path = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -40,6 +40,11 @@ class PurchaseOrderBase(BaseModel):
     payment_terms: str
     delivery_mode: str
 
+    
+    # ✅ New Annexure Fields
+    include_annexure: Optional[bool] = False
+    annexure_text: Optional[str] = None
+    annexure_file_path: Optional[str] = None
     # Validation: Supplier name should only contain letters/spaces
     @field_validator("supplier_name")
     @classmethod

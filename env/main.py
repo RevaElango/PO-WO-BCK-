@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List
 import secrets
+from fastapi.middleware.cors import CORSMiddleware
 
 import schemas, crud
 from models import User  # If needed
@@ -18,6 +19,14 @@ active_tokens = {}
 app = FastAPI()
 security = HTTPBearer()  # Enables Swagger "Authorize" button
 
+# ✅ Allow CORS for frontend (Angular)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ✅ Change to frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ✅ Database dependency
 def get_db():
     db = SessionLocal()
@@ -51,7 +60,7 @@ def create_po(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), us
     return crud.create_po(db=db, po=po)
 
 # ✅ Protected route: Get all Purchase Orders
-@app.get("/purchase-orders/", response_model=List[schemas.PurchaseOrder])
+@app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_pos(db)
 
