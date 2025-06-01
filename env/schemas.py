@@ -91,6 +91,10 @@ class WorkOrderBase(BaseModel):
     payment_term: str
     deliverables: Optional[str] = None
     additional_terms: Optional[str] = None
+    # ✅ New Annexure Fields
+    include_annexure: Optional[bool] = False
+    annexure_text: Optional[str] = None
+    annexure_file_path: Optional[str] = None
 
     # Validation: date should not be in the future
     @field_validator("date")
