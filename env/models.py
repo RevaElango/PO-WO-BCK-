@@ -55,6 +55,11 @@ class WorkOrder(Base):
     payment_term = Column(String, nullable=False)
     deliverables = Column(String, nullable=True)        # Optional
     additional_terms = Column(String, nullable=True)     # Optional
+     # New fields for Annexure
+    include_annexure = Column(Boolean, default=False)
+    annexure_text = Column(String, nullable=True)
+    annexure_file_path = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 class AmendmentOrder(Base):
