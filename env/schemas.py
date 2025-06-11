@@ -54,6 +54,10 @@ class PurchaseOrderCreate(BaseModel):
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
     items: List  # assume defined elsewhere
+    signed_po_path :Optional[str] = None
+    signed_po_uploaded_at: Optional[datetime]  # ✅ Correct type
+
+
 
     @field_validator("supplier_name", check_fields=False)
     @classmethod
@@ -110,6 +114,8 @@ class WorkOrderBase(BaseModel):
     annexure_file_path: Optional[str] = None
     project_keyword: Optional[str] = None  # ✅ New field
     provider_name: Optional[str] = None  # ✅ New field
+    signed_wo_path :Optional[str] = None
+    signed_wo_uploaded_at: Optional[datetime]  # ✅ Correct type
 
 
     @field_validator("date", check_fields=False)
@@ -176,6 +182,8 @@ class AMOrderBase(BaseModel):
     existing: str
     read_as: str
     additional_items: Optional[str] = None
+    signed_Am_path :Optional[str] = None
+    signed_Am_uploaded_at: Optional[datetime]  # ✅ Correct type
 
 class AMOrderCreate(AMOrderBase):
     pass
