@@ -63,8 +63,11 @@ class PurchaseOrderCreate(BaseModel):
     include_annexure: bool = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
-    items: List[PurchaseOrderItemCreate]  # ✅ Make sure this comes *after* the class is defined
     preview_file_path: Optional[str] = None
+    items: List[PurchaseOrderItemCreate]
+    signed_po_path :Optional[str] = None
+    signed_po_uploaded_at: Optional[datetime]  # ✅ Correct type
+
 
 
     @field_validator("supplier_name", check_fields=False)

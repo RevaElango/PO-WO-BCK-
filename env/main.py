@@ -528,3 +528,57 @@ def add_supplier(
 
     return {"message": "Supplier added successfully"}  # ✅ Now no validation error
 
+# Upload Directories
+SIGNED_PO_UPLOAD_DIR = "uploads/signed_pos"
+SIGNED_WO_UPLOAD_DIR = "uploads/signed_wos"
+SIGNED_AM_UPLOAD_DIR = "uploads/signed_Ams"
+
+os.makedirs(SIGNED_PO_UPLOAD_DIR, exist_ok=True)
+os.makedirs(SIGNED_WO_UPLOAD_DIR, exist_ok=True)
+os.makedirs(SIGNED_AM_UPLOAD_DIR, exist_ok=True)
+
+app.mount("/uploads/signed_pos", StaticFiles(directory=SIGNED_PO_UPLOAD_DIR), name="signed_pos")
+app.mount("/uploads/signed_wos", StaticFiles(directory=SIGNED_WO_UPLOAD_DIR), name="signed_wos")
+app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), name="signed_Ams")
+
+# Upload Signed PO
+@app.post("/purchase-orders/{po_id}/upload-signed-po")
+def upload_signed_po(po_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    filename = f"signed_po_{po_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    file_path = os.path.join(SIGNED_PO_UPLOAD_DIR, filename)
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+    relative_path = f"http://localhost:8000/uploads/signed_pos/{filename}"
+    db.execute(update(PurchaseOrder).where(PurchaseOrder.id == po_id).values(signed_po_path=relative_path, signed_po_uploaded_at=datetime.utcnow()))
+    db.commit()
+    return JSONResponse(content={"message": "Signed PO uploaded successfully", "signed_po_path": relative_path})
+
+# Upload Signed WO
+@app.post("/work-orders/{wo_id}/upload-signed-wo")
+def upload_signed_wo(wo_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    filename = f"signed_wo_{wo_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    file_path = os.path.join(SIGNED_WO_UPLOAD_DIR, filename)
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+    relative_path = f"http://localhost:8000/uploads/signed_wos/{filename}"
+    db.execute(update(WorkOrder).where(WorkOrder.id == wo_id).values(signed_wo_path=relative_path, signed_wo_uploaded_at=datetime.utcnow()))
+    db.commit()
+    return JSONResponse(content={"message": "Signed WO uploaded successfully", "signed_wo_path": relative_path})
+
+# Upload Signed AM
+@app.post("/Amendment-orders/{Am_id}/upload-signed-Am")
+def upload_signed_Am(Am_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    filename = f"signed_Am_{Am_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    file_path = os.path.join(SIGNED_AM_UPLOAD_DIR, filename)
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+    relative_path = f"http://localhost:8000/uploads/signed_Ams/{filename}"
+    db.execute(update(AmendmentOrder).where(AmendmentOrder.id == Am_id).values(signed_Am_path=relative_path, signed_Am_uploaded_at=datetime.utcnow()))
+    db.commit()
+    return JSONResponse(content={"message": "Signed AM uploaded successfully", "signed_Am_path": relative_path})
