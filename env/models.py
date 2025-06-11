@@ -31,6 +31,9 @@ class PurchaseOrder(Base):
     payment_terms = Column(String, nullable=False)
     additional_terms = Column(String, nullable=True)
     delivery_mode = Column(String, nullable=False)
+    signed_po_path = Column(String(255), nullable=True)
+    signed_po_uploaded_at = Column(DateTime, nullable=True)
+
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -54,6 +57,8 @@ class WorkOrder(Base):
     include_annexure = Column(Boolean, default=False)
     annexure_text = Column(String, nullable=True)
     annexure_file_path = Column(String, nullable=True)
+    signed_wo_path = Column(String(255), nullable=True)
+    signed_wo_uploaded_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -75,6 +80,8 @@ class AmendmentOrder(Base):
     existing = Column(Text, nullable=False)
     read_as = Column(Text, nullable=False)
     additional_items = Column(Text, nullable=True)
+    signed_Am_path = Column(String(255), nullable=True)
+    signed_Am_uploaded_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

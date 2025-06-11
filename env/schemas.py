@@ -39,6 +39,10 @@ class PurchaseOrderBase(BaseModel):
     delivery_date: date
     payment_terms: str
     delivery_mode: str
+    signed_po_path :Optional[str] = None
+    signed_po_uploaded_at: Optional[datetime]  # ✅ Correct type
+
+
 
     # Validation: Supplier name should only contain letters/spaces
     @field_validator("supplier_name")
@@ -95,6 +99,8 @@ class WorkOrderBase(BaseModel):
     include_annexure: Optional[bool] = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
+    signed_wo_path :Optional[str] = None
+    signed_wo_uploaded_at: Optional[datetime]  # ✅ Correct type
 
     # Validation: date should not be in the future
     @field_validator("date")
@@ -157,6 +163,8 @@ class AMOrderBase(BaseModel):
     existing: str
     read_as: str
     additional_items: Optional[str] = None
+    signed_Am_path :Optional[str] = None
+    signed_Am_uploaded_at: Optional[datetime]  # ✅ Correct type
 
 
 class AMOrderCreate(AMOrderBase):
