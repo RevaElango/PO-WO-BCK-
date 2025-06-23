@@ -5,11 +5,21 @@ def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
 def create_po(db: Session, po: schemas.PurchaseOrderCreate):
-    db_po = models.PurchaseOrder(**po.dict())
+    # Create the PurchaseOrderItem instances
+    items = [models.PurchaseOrderItem(**item.dict()) for item in po.items]
+
+    # Create the PurchaseOrder (excluding items)
+    po_data = po.dict(exclude={"items"})
+    db_po = models.PurchaseOrder(**po_data)
+
+    # Link items to the PO
+    db_po.items = items
+
     db.add(db_po)
     db.commit()
     db.refresh(db_po)
     return db_po
+
 
 def get_all_pos(db: Session):
     return db.query(models.PurchaseOrder).all()

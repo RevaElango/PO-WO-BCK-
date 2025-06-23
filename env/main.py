@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 import schemas, crud
 from database import SessionLocal, engine, Base
 from models import User
+from models import Supplier  # Add this to your imports at the top
+from models import ProjectNoDetails  # Make sure to import the model
+
 
 # Secret key and algorithm
 SECRET_KEY = "your-secret-key"  
@@ -76,10 +79,10 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 
     return {"access_token": token, "token_type": "bearer", "expires_in_minutes": ACCESS_TOKEN_EXPIRE_MINUTES}
 
-# ✅ Protected Endpoints
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
 def create_po(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.create_po(db=db, po=po)
+
 
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -108,4 +111,26 @@ def ping(current_user: User = Depends(get_current_user)):
 @app.get("/dashboard", response_model=schemas.DashboardCounts)
 def get_dashboard_data(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_dashboard_counts(db)
-
+@app.get("/suppliers")
+def get_suppliers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    suppliers = db.query(Supplier).all()
+    return [
+        {
+            "id": supplier.id,
+            "name": supplier.supplier_name,
+            "address": supplier.supplier_address
+        }
+        for supplier in suppliers
+    ]
+@app.get("/project-keywords")
+def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    projects = db.query(ProjectNoDetails).all()
+    return [
+        {
+            "id": project.id,
+            "project_keyword": project.project_keyword,
+            "project_code": project.project_code,
+            "pi_code": project.pi_code
+        }
+        for project in projects
+    ]

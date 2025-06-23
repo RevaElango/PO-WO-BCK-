@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
-from sqlalchemy import Text
 
 class User(Base):
     __tablename__ = "users"
@@ -12,33 +12,62 @@ class User(Base):
     password_hash = Column(String(255))  # Using as plain password for now
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     po_number = Column(String, index=True)
     po_date = Column(Date)
     supplier_name = Column(String)
     supplier_address = Column(String)
+    indent_date = Column(Date, nullable=True)  # ✅ Add this
     quotation_number = Column(String, nullable=True)
     email = Column(String(100), nullable=True)
     dated = Column(Date, nullable=True)
-    item_description = Column(String)
-    quantity = Column(Integer)
-    unit_price = Column(Integer)
-    total_cost = Column(Integer)
+    total_cost = Column(Integer)  # 💰 Grand total of all items
+
     delivery_date = Column(Date, nullable=False)
     payment_terms = Column(String, nullable=False)
     additional_terms = Column(String, nullable=True)
     delivery_mode = Column(String, nullable=False)
+    project_keyword = Column(String, nullable=True)
+    prefix = Column(String, nullable=True)
+    suffix = Column(String, nullable=True)
 
-     # New fields for Annexure
     include_annexure = Column(Boolean, default=False)
     annexure_text = Column(String, nullable=True)
     annexure_file_path = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items = relationship("PurchaseOrderItem", back_populates="po", cascade="all, delete-orphan")
+
+
+class PurchaseOrderItem(Base):
+    __tablename__ = "purchase_order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    po_id = Column(Integer, ForeignKey("purchase_orders.id"))
+
+    item_description = Column(String(255), nullable=False)  # ✅ Add length
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Integer, nullable=False)
+    item_total = Column(Integer, nullable=False)
+
+    po = relationship("PurchaseOrder", back_populates="items")
+
+
+class ProjectNoDetails(Base):
+    __tablename__ = "project_no_details"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_keyword = Column(String, nullable=False)
+    project_code = Column(String, nullable=False)
+    pi_code = Column(String, nullable=False)
+
+
 class WorkOrder(Base):
     __tablename__ = "work_order"
 
@@ -55,13 +84,16 @@ class WorkOrder(Base):
     payment_term = Column(String, nullable=False)
     deliverables = Column(String, nullable=True)        # Optional
     additional_terms = Column(String, nullable=True)     # Optional
-     # New fields for Annexure
+
+    # New fields for Annexure
     include_annexure = Column(Boolean, default=False)
     annexure_text = Column(String, nullable=True)
     annexure_file_path = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class AmendmentOrder(Base):
     __tablename__ = "amendment_orders"
 
@@ -85,4 +117,10 @@ class AmendmentOrder(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class Supplier(Base):
+    __tablename__ = "suppliers"
 
+    id = Column(Integer, primary_key=True, index=True)
+    supplier_name = Column(String(255), nullable=False)
+    supplier_address = Column(String, nullable=False)
+    type = Column(String(100), nullable=True)
