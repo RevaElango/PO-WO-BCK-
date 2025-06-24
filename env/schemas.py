@@ -50,6 +50,8 @@ class PurchaseOrderCreate(BaseModel):
     delivery_mode: str
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
+    signed_po_path :Optional[str] = None
+    signed_po_uploaded_at: Optional[datetime] = None # ✅ Correct type
     project_keyword: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
@@ -114,6 +116,8 @@ class WorkOrderBase(BaseModel):
     include_annexure: Optional[bool] = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
+    signed_wo_path :Optional[str] = None
+    signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
 
     @field_validator("date", check_fields=False)
     @classmethod
@@ -173,6 +177,8 @@ class AMOrderBase(BaseModel):
     existing: str
     read_as: str
     additional_items: Optional[str] = None
+    signed_Am_path :Optional[str] = None
+    signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type
 
 class AMOrderCreate(AMOrderBase):
     pass
