@@ -55,6 +55,8 @@ class PurchaseOrderCreate(BaseModel):
     signed_po_uploaded_at: Optional[datetime] = None
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
+    signed_po_path :Optional[str] = None
+    signed_po_uploaded_at: Optional[datetime] = None # ✅ Correct type
     project_keyword: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
@@ -152,6 +154,7 @@ class WorkOrderBase(BaseModel):
     project_keyword: Optional[str] = None  # ✅ New field
     preview_file_path: Optional[str] = None
  
+
     @field_validator("date", check_fields=False)
     @classmethod
     def validate_work_order_date(cls, v: date):
@@ -215,6 +218,7 @@ class AMOrderBase(BaseModel):
     signed_Am_path :Optional[str] = None
     signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type
  
+
 class AMOrderCreate(AMOrderBase):
     pass
  
