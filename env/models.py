@@ -64,8 +64,9 @@ class ProjectNoDetails(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_keyword = Column(String, nullable=False)
-    project_code = Column(String, nullable=False)
-    pi_code = Column(String, nullable=False)
+    pn_prefix = Column(String, nullable=False)   # updated from project_code
+    pn_suffix = Column(String, nullable=False)   # updated from pi_code
+
 
 
 class WorkOrder(Base):
