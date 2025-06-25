@@ -17,7 +17,11 @@ def create_po(db: Session, po: schemas.PurchaseOrderCreate):
 
     # ✅ Step 3: Create and save
     db_po = models.PurchaseOrder(**po_data)
-    db_po.items = [models.PurchaseOrderItem(**item.dict()) for item in po.items]
+    db_po.items = [
+    models.PurchaseOrderItem(**(item.dict() if hasattr(item, 'dict') else item))
+    for item in po.items
+]
+
 
     db.add(db_po)
     db.commit()
