@@ -22,6 +22,7 @@ class PurchaseOrder(Base):
     supplier_name = Column(String)
     supplier_address = Column(String)
     indent_date = Column(Date, nullable=True)  # ✅ Add this
+    requester_name = Column(String(100))
     quotation_number = Column(String, nullable=True)
     email = Column(String(100), nullable=True)
     dated = Column(Date, nullable=True)
@@ -77,6 +78,8 @@ class WorkOrder(Base):
     quotation_no = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False)
     quotation_date = Column(Date, nullable=False)
+    requester_name = Column(String(100))
+    indent_date = Column(Date, nullable=True)  # ✅ Add this
     scope_of_work = Column(String, nullable=False)
     value_of_service = Column(Integer, nullable=False)
     tax = Column(Integer, nullable=False)
