@@ -39,11 +39,10 @@ class PurchaseOrderCreate(BaseModel):
     supplier_address: str
     indent_date: date
     requester_name: str
-    
     quotation_number: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     dated: Optional[date] = None
-    total_cost: int  # Grand total
+    total_cost: int
     delivery_date: date
     payment_terms: str
     additional_terms: Optional[str] = None
@@ -54,17 +53,16 @@ class PurchaseOrderCreate(BaseModel):
     include_annexure: bool = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
-    items: List[PurchaseOrderItemCreate]
+    items: List  # assume defined elsewhere
 
-    # ✅ Validation: Supplier name must be letters/spaces
     @field_validator("supplier_name", check_fields=False)
     @classmethod
-    def supplier_name_alpha(cls, v):
-        if not re.match(r"^[A-Za-z ]+$", v):
-            raise ValueError("Supplier name must contain only letters and spaces")
+    def supplier_name_valid(cls, v):
+        # Allow letters, spaces, dots, hyphens, commas, ampersands
+        if not re.match(r"^[A-Za-z0-9 .,&-]+$", v):
+            raise ValueError("Supplier name must contain only letters, numbers, spaces, dots, commas, ampersands, and hyphens")
         return v
 
-    # ✅ Validation: PO date must be within current financial year
     @field_validator("po_date", check_fields=False)
     @classmethod
     def validate_po_date(cls, v: date):
