@@ -38,6 +38,8 @@ class PurchaseOrderCreate(BaseModel):
     supplier_name: str
     supplier_address: str
     indent_date: date
+    requester_name: str
+    
     quotation_number: Optional[str] = None
     email: Optional[EmailStr] = None
     dated: Optional[date] = None
@@ -96,6 +98,8 @@ class WorkOrderBase(BaseModel):
     quotation_no: Optional[str]
     email: Optional[EmailStr]
     quotation_date: date
+    requester_name: str
+    indent_date: date
     scope_of_work: str
     value_of_service: int
     tax: int
