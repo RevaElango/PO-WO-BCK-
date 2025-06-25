@@ -5,15 +5,19 @@ def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
 def create_po(db: Session, po: schemas.PurchaseOrderCreate):
-    # Create the PurchaseOrderItem instances
-    items = [models.PurchaseOrderItem(**item.dict()) for item in po.items]
+    # ✅ Step 1: Lookup project_no using project_keyword
+    project_detail = db.query(models.ProjectNoDetails).filter(
+        models.ProjectNoDetails.project_keyword == po.project_keyword
+    ).first()
+    project_no = project_detail.project_no if project_detail else None  # <- FIXED HERE
 
-    # Create the PurchaseOrder (excluding items)
+    # ✅ Step 2: Prepare PO data (excluding items)
     po_data = po.dict(exclude={"items"})
-    db_po = models.PurchaseOrder(**po_data)
+    po_data["project_no"] = project_no
 
-    # Link items to the PO
-    db_po.items = items
+    # ✅ Step 3: Create and save
+    db_po = models.PurchaseOrder(**po_data)
+    db_po.items = [models.PurchaseOrderItem(**item.dict()) for item in po.items]
 
     db.add(db_po)
     db.commit()

@@ -43,6 +43,7 @@ class PurchaseOrder(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     items = relationship("PurchaseOrderItem", back_populates="po", cascade="all, delete-orphan")
+    project_no = Column(String, nullable=True)  # ✅ This is required
 
 
 class PurchaseOrderItem(Base):
@@ -64,6 +65,7 @@ class ProjectNoDetails(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_keyword = Column(String, nullable=False)
+    project_no = Column(String, nullable=False)
     pn_prefix = Column(String, nullable=False)   # updated from project_code
     pn_suffix = Column(String, nullable=False)   # updated from pi_code
 

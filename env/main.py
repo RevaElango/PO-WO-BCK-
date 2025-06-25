@@ -129,6 +129,7 @@ def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get
         {
             "id": project.id,
             "project_keyword": project.project_keyword,
+            "project_no":project.project_no,
             "pn_prefix": project.pn_prefix,   # updated
             "pn_suffix": project.pn_suffix    # updated
         }
