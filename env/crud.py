@@ -36,11 +36,26 @@ def get_all_pos(db: Session):
 #     return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
 
 def create_work_order(db: Session, work_order: schemas.WorkOrderCreate):
-    db_work_order = models.WorkOrder(**work_order.dict())
+    # Fetch the project_no using the project_keyword
+    project_no = None
+    if work_order.project_keyword:
+        project = db.query(models.ProjectNoDetails).filter(
+            models.ProjectNoDetails.project_keyword == work_order.project_keyword
+        ).first()
+        if project:
+            project_no = project.project_no
+
+    # Convert to dict and add project_no
+    work_order_data = work_order.dict()
+    work_order_data["project_no"] = project_no  # Add it to the payload
+
+    db_work_order = models.WorkOrder(**work_order_data)
     db.add(db_work_order)
     db.commit()
     db.refresh(db_work_order)
     return db_work_order
+
+
 
 def get_all_work_orders(db: Session):
     return db.query(models.WorkOrder).all()
