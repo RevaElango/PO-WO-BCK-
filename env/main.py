@@ -145,3 +145,7 @@ def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_cu
         "purchase_orders": [po[0] for po in po_numbers],
         "work_orders": [wo[0] for wo in wo_numbers]
     }
+@app.get("/total-orders", response_model=List[schemas.TotalOrder])
+def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return crud.get_all_total_orders(db)
+
