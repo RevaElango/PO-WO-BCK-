@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean, ForeignKey, Text, DECIMAL
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -134,3 +134,19 @@ class Supplier(Base):
     supplier_name = Column(String(255), nullable=False)
     supplier_address = Column(String, nullable=False)
     type = Column(String(100), nullable=True)
+
+class TotalOrder(Base):
+    __tablename__ = "total_orders"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    indent_date = Column(Date, nullable=True)
+    orders_date = Column(Date, nullable=True)
+    email = Column(String(255), nullable=True)
+    Item_Description = Column(Text, nullable=True)
+    Supplier_Name = Column(String(255), nullable=True)
+    Quantity = Column(Integer, nullable=True)
+    Total_Cost = Column(DECIMAL(18, 2), nullable=True)
+    project_no = Column(String(100), nullable=True)
+    Order_No = Column(String(100), nullable=True)
+    requestor_name = Column(String(100), nullable=True)
+    Payment_Term = Column(String(100), nullable=True)

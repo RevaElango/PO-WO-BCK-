@@ -135,3 +135,7 @@ def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get
         }
         for project in projects
     ]
+@app.get("/total-orders", response_model=List[schemas.TotalOrder])
+def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return crud.get_all_total_orders(db)
+

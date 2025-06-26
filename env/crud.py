@@ -68,6 +68,10 @@ def create_am_order(db: Session, am_order: schemas.AMOrderCreate):
     db.refresh(db_am_order)
     return db_am_order
 
+def get_all_total_orders(db: Session):
+    return db.query(models.TotalOrder).all()
+
+
 def get_all_am_orders(db: Session):
     return db.query(models.AmendmentOrder).all()  # ✅ use AmendmentOrder
 

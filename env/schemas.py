@@ -198,3 +198,20 @@ class DashboardCounts(BaseModel):
     work_orders: int
     amendment_orders: int
     total_orders: int
+
+class TotalOrder(BaseModel):
+    id: int
+    indent_date: Optional[date]
+    orders_date: Optional[date]
+    email: Optional[str]
+    Item_Description: Optional[str]
+    Supplier_Name: Optional[str]
+    Quantity: Optional[int]
+    Total_Cost: Optional[float]
+    project_no: Optional[str]
+    Order_No: Optional[str]
+    requestor_name: Optional[str]
+    Payment_Term: Optional[str]
+
+    class Config:
+        orm_mode = True
