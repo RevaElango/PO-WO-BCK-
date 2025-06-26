@@ -20,12 +20,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 # FastAPI app
 app = FastAPI()
-security = HTTPBearer()  # Enables Swagger "Authorize" button
+security = HTTPBearer()
 
-# ✅ Enable CORS
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to a specific origin in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,9 +33,6 @@ app.add_middleware(
 
 # Database setup
 Base.metadata.create_all(bind=engine)
-
-# Security scheme
-security = HTTPBearer()
 
 # DB session dependency
 def get_db():
@@ -45,7 +42,8 @@ def get_db():
     finally:
         db.close()
 
-# JWT creation function
+# JWT creation
+
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
@@ -65,7 +63,6 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     except JWTError:
         raise HTTPException(status_code=401, detail="Token is invalid or expired")
 
-# ✅ Login Route with Expiration
 @app.post("/login")
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
@@ -84,7 +81,6 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 def create_po(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.create_po(db=db, po=po)
 
-
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_pos(db)
@@ -99,6 +95,7 @@ def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_cur
 
 @app.post("/amendment-orders/", response_model=schemas.AMOrder)
 def create_am_order(am_order: schemas.AMOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    crud.mark_reference_amended(db, am_order.reference_no)
     return crud.create_am_order(db=db, am_order=am_order)
 
 @app.get("/amendment-orders/view", response_model=List[schemas.AMOrder])
@@ -112,6 +109,7 @@ def ping(current_user: User = Depends(get_current_user)):
 @app.get("/dashboard", response_model=schemas.DashboardCounts)
 def get_dashboard_data(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_dashboard_counts(db)
+
 @app.get("/suppliers")
 def get_suppliers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     suppliers = db.query(Supplier).all()
@@ -123,6 +121,7 @@ def get_suppliers(db: Session = Depends(get_db), user: dict = Depends(get_curren
         }
         for supplier in suppliers
     ]
+
 @app.get("/project-keywords")
 def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     projects = db.query(ProjectNoDetails).all()
@@ -194,3 +193,13 @@ def upload_signed_Am(Am_id: int, file: UploadFile = File(...), db: Session = Dep
     db.execute(update(AmendmentOrder).where(AmendmentOrder.id == Am_id).values(signed_Am_path=relative_path, signed_Am_uploaded_at=datetime.utcnow()))
     db.commit()
     return JSONResponse(content={"message": "Signed AM uploaded successfully", "signed_Am_path": relative_path})
+
+@app.get("/amendment-source-options")
+def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    po_numbers = db.query(PurchaseOrder.po_number).all()
+    wo_numbers = db.query(WorkOrder.work_order_no).all()
+
+    return {
+        "purchase_orders": [po[0] for po in po_numbers],
+        "work_orders": [wo[0] for wo in wo_numbers]
+    }

@@ -86,4 +86,14 @@ def get_dashboard_counts(db: Session):
         "amendment_orders": am_count,
         "total_orders": total
     }
-
+def mark_reference_amended(db: Session, reference_no: str):
+    """
+    Sets the amendment='Yes' for the referenced PO or WO.
+    """
+    if reference_no.startswith("PO:"):
+        po_number = reference_no.replace("PO:", "").strip()
+        db.query(models.PurchaseOrder).filter(models.PurchaseOrder.po_number == po_number).update({"amendment": "Yes"})
+    elif reference_no.startswith("WO:"):
+        wo_number = reference_no.replace("WO:", "").strip()
+        db.query(models.WorkOrder).filter(models.WorkOrder.work_order_no == wo_number).update({"amendment": "Yes"})
+    db.commit()

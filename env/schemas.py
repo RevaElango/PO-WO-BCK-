@@ -47,6 +47,8 @@ class PurchaseOrderCreate(BaseModel):
     payment_terms: str
     additional_terms: Optional[str] = None
     delivery_mode: str
+    is_asset: Optional[bool] = False
+    asset_type: Optional[str] = None
     project_keyword: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
@@ -107,6 +109,8 @@ class WorkOrderBase(BaseModel):
     tax: int
     duration_of_service: str
     payment_term: str
+    supplier_name: str
+    address: str
     deliverables: Optional[str] = None
     additional_terms: Optional[str] = None
     include_annexure: Optional[bool] = False
@@ -169,9 +173,11 @@ class WorkOrder(WorkOrderBase):
 # ---------------------------
 
 class AMOrderBase(BaseModel):
+    reference_no: str
     date: date
     company_name: str
     address: str
+    req_rec_date: date
     subject: str
     category: str
     category_no: str
