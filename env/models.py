@@ -35,6 +35,9 @@ class PurchaseOrder(Base):
     signed_po_path = Column(String(255), nullable=True)
     signed_po_uploaded_at = Column(DateTime, nullable=True)
 
+    amendment = Column(String(10), default="No")  # or Boolean if preferred
+    is_asset = Column(Boolean, default=False)  # ✅ New field for Yes/No
+    asset_type = Column(String(100), nullable=True)  # ✅ Show only if is_asset is True
     project_keyword = Column(String, nullable=True)
     prefix = Column(String, nullable=True)
     suffix = Column(String, nullable=True)
@@ -90,8 +93,12 @@ class WorkOrder(Base):
     payment_term = Column(String, nullable=False)
     deliverables = Column(String, nullable=True)        # Optional
     additional_terms = Column(String, nullable=True)     # Optional
+    amendment = Column(String(10), default="No")  # or Boolean if preferred
+
 
     # New fields for Annexure
+    supplier_name = Column(String(255))
+    address = Column(Text)
     include_annexure = Column(Boolean, default=False)
     annexure_text = Column(String, nullable=True)
     annexure_file_path = Column(String, nullable=True)
@@ -106,9 +113,11 @@ class AmendmentOrder(Base):
     __tablename__ = "amendment_orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    reference_no = Column(String(100), nullable=True)
     date = Column(Date, nullable=False)
     company_name = Column(Text, nullable=False)
     address = Column(Text, nullable=False)
+    req_rec_date = Column(Date)  # <-- New field
     subject = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
     category_no = Column(String(100), nullable=False)
