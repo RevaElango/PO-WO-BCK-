@@ -116,6 +116,9 @@ class WorkOrderBase(BaseModel):
     annexure_file_path: Optional[str] = None
     signed_wo_path :Optional[str] = None
     signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
+    project_keyword: Optional[str] = None  # ✅ New field
+    provider_name: Optional[str] = None  # ✅ New field
+
 
     @field_validator("date", check_fields=False)
     @classmethod
@@ -142,6 +145,14 @@ class WorkOrderBase(BaseModel):
     @classmethod
     def empty_string_to_none(cls, v):
         return v or None
+
+    @field_validator("provider_name", check_fields=False)
+    @classmethod
+    def validate_provider_name(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("Provider Name cannot be blank")
+        return v
+
 
 class WorkOrderCreate(WorkOrderBase):
     pass

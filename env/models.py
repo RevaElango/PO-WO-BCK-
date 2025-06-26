@@ -107,6 +107,10 @@ class WorkOrder(Base):
     annexure_file_path = Column(String, nullable=True)
     signed_wo_path = Column(String(255), nullable=True)
     signed_wo_uploaded_at = Column(DateTime, nullable=True)
+     
+    project_keyword = Column(String(255), nullable=True)  # ✅ New column
+    project_no = Column(String(100), nullable=True)  # ✅ New column to store project number
+    provider_name = Column(String(255), nullable=True)  # ✅ New column
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
