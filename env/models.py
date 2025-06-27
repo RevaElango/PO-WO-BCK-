@@ -110,7 +110,6 @@ class WorkOrder(Base):
      
     project_keyword = Column(String(255), nullable=True)  # ✅ New column
     project_no = Column(String(100), nullable=True)  # ✅ New column to store project number
-    provider_name = Column(String(255), nullable=True)  # ✅ New column
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

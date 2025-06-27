@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
 import schemas,models
 
 def get_user_by_email(db: Session, email: str):
@@ -30,7 +30,7 @@ def create_po(db: Session, po: schemas.PurchaseOrderCreate):
 
 
 def get_all_pos(db: Session):
-    return db.query(models.PurchaseOrder).all()
+    return db.query(models.PurchaseOrder).options(joinedload(models.PurchaseOrder.items)).all()
 
 # def get_po_by_id(db: Session, po_id: int):
 #     return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()

@@ -78,16 +78,39 @@ class PurchaseOrderCreate(BaseModel):
             raise ValueError("PO date cannot be a future date")
         return v
 
+class PurchaseOrderItem(BaseModel):
+    id: int
+    item_description: str
+    quantity: int
+    unit_price: int
+    item_total: int
+
+    class Config:
+        orm_mode = True
+
+
 class PurchaseOrder(BaseModel):
     id: int
     po_number: str
+    po_date: Optional[date]
+    supplier_name: Optional[str]
+    supplier_address: Optional[str]
+    quotation_number: Optional[str]
+    email: Optional[str]
+    dated: Optional[date]
+    additional_terms: Optional[str]
+    delivery_date: Optional[date]
+    payment_terms: Optional[str]
+    delivery_mode: Optional[str]
     total_cost: int
+    signed_po_path: Optional[str]
     items: List[PurchaseOrderItem]
     created_at: datetime
     updated_at: datetime
 
     class Config:
         orm_mode = True
+
 
 
 # ---------------------------
@@ -117,7 +140,6 @@ class WorkOrderBase(BaseModel):
     signed_wo_path :Optional[str] = None
     signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
     project_keyword: Optional[str] = None  # ✅ New field
-    provider_name: Optional[str] = None  # ✅ New field
 
 
     @field_validator("date", check_fields=False)
@@ -145,14 +167,6 @@ class WorkOrderBase(BaseModel):
     @classmethod
     def empty_string_to_none(cls, v):
         return v or None
-
-    @field_validator("provider_name", check_fields=False)
-    @classmethod
-    def validate_provider_name(cls, v):
-        if v is not None and not v.strip():
-            raise ValueError("Provider Name cannot be blank")
-        return v
-
 
 class WorkOrderCreate(WorkOrderBase):
     pass
