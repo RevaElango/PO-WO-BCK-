@@ -2,36 +2,36 @@ from pydantic import BaseModel, EmailStr, field_validator
 from datetime import date, datetime
 from typing import List, Optional
 import re
-
+ 
 # ---------------------------
 # User Authentication Schemas
 # ---------------------------
-
+ 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
-
+ 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-
-
+ 
+ 
 # ---------------------------
 # Purchase Order Schemas
 # ---------------------------
-
+ 
 class PurchaseOrderItemCreate(BaseModel):
     item_description: str
     quantity: int
     unit_price: int
     item_total: int
-
+ 
 class PurchaseOrderItem(PurchaseOrderItemCreate):
     id: int
-
+ 
     class Config:
         orm_mode = True
-
+ 
 class PurchaseOrderCreate(BaseModel):
     po_number: str
     po_date: date
@@ -47,6 +47,8 @@ class PurchaseOrderCreate(BaseModel):
     payment_terms: str
     additional_terms: Optional[str] = None
     delivery_mode: str
+    signed_po_path :Optional[str] = None
+    signed_po_uploaded_at: Optional[datetime] = None # ✅ Correct type
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
     project_keyword: Optional[str] = None
@@ -56,11 +58,7 @@ class PurchaseOrderCreate(BaseModel):
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
     items: List  # assume defined elsewhere
-    signed_po_path :Optional[str] = None
-    signed_po_uploaded_at: Optional[datetime]  # ✅ Correct type
-
-
-
+ 
     @field_validator("supplier_name", check_fields=False)
     @classmethod
     def supplier_name_valid(cls, v):
@@ -68,7 +66,7 @@ class PurchaseOrderCreate(BaseModel):
         if not re.match(r"^[A-Za-z0-9 .,&-]+$", v):
             raise ValueError("Supplier name must contain only letters, numbers, spaces, dots, commas, ampersands, and hyphens")
         return v
-
+ 
     @field_validator("po_date", check_fields=False)
     @classmethod
     def validate_po_date(cls, v: date):
@@ -79,23 +77,46 @@ class PurchaseOrderCreate(BaseModel):
         if v > today:
             raise ValueError("PO date cannot be a future date")
         return v
-
+ 
+class PurchaseOrderItem(BaseModel):
+    id: int
+    item_description: str
+    quantity: int
+    unit_price: int
+    item_total: int
+ 
+    class Config:
+        orm_mode = True
+ 
+ 
 class PurchaseOrder(BaseModel):
     id: int
     po_number: str
+    po_date: Optional[date]
+    supplier_name: Optional[str]
+    supplier_address: Optional[str]
+    quotation_number: Optional[str]
+    email: Optional[str]
+    dated: Optional[date]
+    additional_terms: Optional[str]
+    delivery_date: Optional[date]
+    payment_terms: Optional[str]
+    delivery_mode: Optional[str]
     total_cost: int
+    signed_po_path: Optional[str]
     items: List[PurchaseOrderItem]
     created_at: datetime
     updated_at: datetime
-
+ 
     class Config:
         orm_mode = True
-
-
+ 
+ 
+ 
 # ---------------------------
 # Work Order Schemas
 # ---------------------------
-
+ 
 class WorkOrderBase(BaseModel):
     work_order_no: str
     date: date
@@ -116,54 +137,53 @@ class WorkOrderBase(BaseModel):
     include_annexure: Optional[bool] = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
-    project_keyword: Optional[str] = None  # ✅ New field
     signed_wo_path :Optional[str] = None
-    signed_wo_uploaded_at: Optional[datetime]  # ✅ Correct type
-
-
+    signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
+    project_keyword: Optional[str] = None  # ✅ New field
+ 
+ 
     @field_validator("date", check_fields=False)
     @classmethod
     def validate_work_order_date(cls, v: date):
         if v > date.today():
             raise ValueError("Work order date cannot be a future date")
         return v
-
+ 
     @field_validator("quotation_date", check_fields=False)
     @classmethod
     def validate_quotation_date(cls, v: date):
         if v > date.today():
             raise ValueError("Quotation date cannot be a future date")
         return v
-
+ 
     @field_validator("value_of_service", "tax", check_fields=False)
     @classmethod
     def validate_positive_numbers(cls, v: int, info):
         if v < 0:
             raise ValueError(f"{info.field_name.replace('_', ' ').capitalize()} must be a non-negative number")
         return v
-
+ 
     @field_validator("email", mode="before", check_fields=False)
     @classmethod
     def empty_string_to_none(cls, v):
         return v or None
-
-
+ 
 class WorkOrderCreate(WorkOrderBase):
     pass
-
+ 
 class WorkOrder(WorkOrderBase):
     id: int
     created_at: datetime
     updated_at: datetime
-
+ 
     class Config:
         orm_mode = True
-
-
+ 
+ 
 # ---------------------------
 # AM Order (Amendment Order) Schemas
 # ---------------------------
-
+ 
 class AMOrderBase(BaseModel):
     reference_no: str
     date: date
@@ -181,30 +201,30 @@ class AMOrderBase(BaseModel):
     read_as: str
     additional_items: Optional[str] = None
     signed_Am_path :Optional[str] = None
-    signed_Am_uploaded_at: Optional[datetime]  # ✅ Correct type
-
+    signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type
+ 
 class AMOrderCreate(AMOrderBase):
     pass
-
+ 
 class AMOrder(AMOrderBase):
     id: int
     created_at: datetime
     updated_at: datetime
-
+ 
     class Config:
         orm_mode = True
-
-
+ 
+ 
 # ---------------------------
 # Dashboard
 # ---------------------------
-
+ 
 class DashboardCounts(BaseModel):
     purchase_orders: int
     work_orders: int
     amendment_orders: int
     total_orders: int
-
+ 
 class TotalOrder(BaseModel):
     id: int
     indent_date: Optional[date]
@@ -218,6 +238,8 @@ class TotalOrder(BaseModel):
     Order_No: Optional[str]
     requestor_name: Optional[str]
     Payment_Term: Optional[str]
-
+ 
     class Config:
         orm_mode = True
+ 
+ 
