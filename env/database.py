@@ -7,3 +7,11 @@ DATABASE_URL = "mysql+pymysql://root:Mysql#25@localhost/po_wo_system"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# ✅ Add this function here so others can import it
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
