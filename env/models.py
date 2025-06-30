@@ -165,3 +165,12 @@ class TotalOrder(Base):
     Order_No = Column(String(100), nullable=True)
     requestor_name = Column(String(100), nullable=True)
     Payment_Term = Column(String(100), nullable=True)
+
+class UploadedOrder(Base):
+    __tablename__ = "uploaded_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_number = Column(String(100), nullable=False)
+    file_name = Column(Text, nullable=False)
+    file_path = Column(Text, nullable=False)
+    uploaded_on = Column(DateTime, default=datetime.utcnow)

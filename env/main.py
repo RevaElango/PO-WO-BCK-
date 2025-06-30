@@ -12,6 +12,7 @@ import os
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import update
+from database import get_db
 
 # Secret key and algorithm
 SECRET_KEY = "your-secret-key"
@@ -114,6 +115,9 @@ def get_dashboard_data(db: Session = Depends(get_db), user: dict = Depends(get_c
 SIGNED_PO_UPLOAD_DIR = "uploads/signed_pos"
 SIGNED_WO_UPLOAD_DIR = "uploads/signed_wos"
 SIGNED_AM_UPLOAD_DIR = "uploads/signed_Ams"
+# Ensure upload directory exists
+CUSTOM_UPLOAD_DIR = "uploads/custom_uploads"
+os.makedirs(CUSTOM_UPLOAD_DIR, exist_ok=True)
 
 os.makedirs(SIGNED_PO_UPLOAD_DIR, exist_ok=True)
 os.makedirs(SIGNED_WO_UPLOAD_DIR, exist_ok=True)
@@ -122,6 +126,8 @@ os.makedirs(SIGNED_AM_UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads/signed_pos", StaticFiles(directory=SIGNED_PO_UPLOAD_DIR), name="signed_pos")
 app.mount("/uploads/signed_wos", StaticFiles(directory=SIGNED_WO_UPLOAD_DIR), name="signed_wos")
 app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), name="signed_Ams")
+# Serve static files
+app.mount("/uploads/custom_uploads", StaticFiles(directory=CUSTOM_UPLOAD_DIR), name="custom_uploads")
 
 # Upload Signed PO
 @app.post("/purchase-orders/{po_id}/upload-signed-po")
@@ -193,18 +199,7 @@ def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get
 def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_total_orders(db)
 
-# Upload Directories
-SIGNED_PO_UPLOAD_DIR = "uploads/signed_pos"
-SIGNED_WO_UPLOAD_DIR = "uploads/signed_wos"
-SIGNED_AM_UPLOAD_DIR = "uploads/signed_Ams"
 
-os.makedirs(SIGNED_PO_UPLOAD_DIR, exist_ok=True)
-os.makedirs(SIGNED_WO_UPLOAD_DIR, exist_ok=True)
-os.makedirs(SIGNED_AM_UPLOAD_DIR, exist_ok=True)
-
-app.mount("/uploads/signed_pos", StaticFiles(directory=SIGNED_PO_UPLOAD_DIR), name="signed_pos")
-app.mount("/uploads/signed_wos", StaticFiles(directory=SIGNED_WO_UPLOAD_DIR), name="signed_wos")
-app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), name="signed_Ams")
 
 # Upload Signed PO
 @app.post("/purchase-orders/{po_id}/upload-signed-po")
@@ -257,3 +252,50 @@ def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_cu
         "purchase_orders": [po[0] for po in po_numbers],
         "work_orders": [wo[0] for wo in wo_numbers]
     }
+
+@app.post("/upload-order-file")
+def upload_order_file(
+    order_number: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+
+    safe_order_number = order_number.replace("/", "_")
+    filename = f"order_{safe_order_number}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    full_dir = os.path.join(CUSTOM_UPLOAD_DIR, safe_order_number)
+    os.makedirs(full_dir, exist_ok=True)
+
+    file_path = os.path.join(full_dir, filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+
+    relative_url = f"http://localhost:8000/uploads/custom_uploads/{safe_order_number}/{filename}"
+
+    uploaded = UploadedOrder(
+        order_number=order_number,
+        file_name=filename,
+        file_path=relative_url
+    )
+    db.add(uploaded)
+    db.commit()
+
+    return JSONResponse(content={"message": "File uploaded successfully", "file_url": relative_url})
+
+
+@app.get("/uploaded-orders")
+def get_uploaded_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    uploads = db.query(UploadedOrder).all()
+    return [
+        {
+            "id": u.id,
+            "order_number": u.order_number,
+            "file_name": u.file_name,
+            "file_path": u.file_path,
+            "uploaded_on": u.uploaded_on
+        }
+        for u in uploads
+    ]
