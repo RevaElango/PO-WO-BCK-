@@ -247,13 +247,39 @@ def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_c
 
 @app.get("/amendment-source-options")
 def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    po_numbers = db.query(PurchaseOrder.po_number).all()
-    wo_numbers = db.query(WorkOrder.work_order_no).all()
+    po_data = db.query(
+        PurchaseOrder.po_number,
+        PurchaseOrder.supplier_name,
+        PurchaseOrder.supplier_address
+    ).all()
+
+    wo_data = db.query(
+        WorkOrder.work_order_no,
+        WorkOrder.supplier_name,
+        WorkOrder.address
+    ).all()
 
     return {
-        "purchase_orders": [po[0] for po in po_numbers],
-        "work_orders": [wo[0] for wo in wo_numbers]
+        "purchase_orders": [
+            {
+                "po_number": po.po_number,
+                "supplier_name": po.supplier_name,
+                "supplier_address": po.supplier_address
+            } for po in po_data
+        ],
+        "work_orders": [
+            {
+                "work_order_no": wo.work_order_no,
+                "supplier_name": wo.supplier_name,
+                "supplier_address": wo.address
+            } for wo in wo_data
+        ]
     }
+
+@app.get("/total-orders", response_model=List[schemas.TotalOrder])
+def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return crud.get_all_total_orders(db)
+
 
 @app.post("/upload-order-file")
 def upload_order_file(
