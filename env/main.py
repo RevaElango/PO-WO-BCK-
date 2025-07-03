@@ -117,6 +117,8 @@ SIGNED_WO_UPLOAD_DIR = "uploads/signed_wos"
 SIGNED_AM_UPLOAD_DIR = "uploads/signed_Ams"
 # Ensure upload directory exists
 CUSTOM_UPLOAD_DIR = "uploads/custom_uploads"
+TOTAL_ORDERS_UPLOAD_DIR = "uploads/total_orders_files"
+os.makedirs(TOTAL_ORDERS_UPLOAD_DIR, exist_ok=True)
 os.makedirs(CUSTOM_UPLOAD_DIR, exist_ok=True)
 
 os.makedirs(SIGNED_PO_UPLOAD_DIR, exist_ok=True)
@@ -128,6 +130,49 @@ app.mount("/uploads/signed_wos", StaticFiles(directory=SIGNED_WO_UPLOAD_DIR), na
 app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), name="signed_Ams")
 # Serve static files
 app.mount("/uploads/custom_uploads", StaticFiles(directory=CUSTOM_UPLOAD_DIR), name="custom_uploads")
+app.mount("/uploads/total_orders_files", StaticFiles(directory=TOTAL_ORDERS_UPLOAD_DIR), name="total_orders_files")
+
+# upload total  
+@app.post("/total-orders/{order_id}/upload-docs")
+def upload_total_order_docs(
+    order_id: int,
+    file: UploadFile = File(...),
+    back_papers_completed_date: str = Form(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    try:
+        parsed_date = datetime.strptime(back_papers_completed_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Date must be in YYYY-MM-DD format")
+
+    filename = f"total_order_doc_{order_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    file_path = os.path.join(TOTAL_ORDERS_UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+
+    relative_path = f"http://localhost:8000/uploads/total_orders_files/{filename}"
+
+    db.execute(
+        update(TotalOrder)
+        .where(TotalOrder.id == order_id)
+        .values(
+            signed_po_path=relative_path,
+            signed_po_uploaded_at=datetime.utcnow(),
+            bp_date=parsed_date
+        )
+    )
+    db.commit()
+
+    return JSONResponse(content={
+        "message": "Total Order document uploaded successfully",
+        "file_path": relative_path,
+        "bp_date": parsed_date.isoformat()
+    })
 
 # Upload Signed PO
 @app.post("/purchase-orders/{po_id}/upload-signed-po")
@@ -199,49 +244,6 @@ def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get
 def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_total_orders(db)
 
-
-
-# Upload Signed PO
-@app.post("/purchase-orders/{po_id}/upload-signed-po")
-def upload_signed_po(po_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-    filename = f"signed_po_{po_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-    file_path = os.path.join(SIGNED_PO_UPLOAD_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
-    relative_path = f"http://localhost:8000/uploads/signed_pos/{filename}"
-    db.execute(update(PurchaseOrder).where(PurchaseOrder.id == po_id).values(signed_po_path=relative_path, signed_po_uploaded_at=datetime.utcnow()))
-    db.commit()
-    return JSONResponse(content={"message": "Signed PO uploaded successfully", "signed_po_path": relative_path})
-
-# Upload Signed WO
-@app.post("/work-orders/{wo_id}/upload-signed-wo")
-def upload_signed_wo(wo_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-    filename = f"signed_wo_{wo_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-    file_path = os.path.join(SIGNED_WO_UPLOAD_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
-    relative_path = f"http://localhost:8000/uploads/signed_wos/{filename}"
-    db.execute(update(WorkOrder).where(WorkOrder.id == wo_id).values(signed_wo_path=relative_path, signed_wo_uploaded_at=datetime.utcnow()))
-    db.commit()
-    return JSONResponse(content={"message": "Signed WO uploaded successfully", "signed_wo_path": relative_path})
-
-# Upload Signed AM
-@app.post("/Amendment-orders/{Am_id}/upload-signed-Am")
-def upload_signed_Am(Am_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-    filename = f"signed_Am_{Am_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-    file_path = os.path.join(SIGNED_AM_UPLOAD_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
-    relative_path = f"http://localhost:8000/uploads/signed_Ams/{filename}"
-    db.execute(update(AmendmentOrder).where(AmendmentOrder.id == Am_id).values(signed_Am_path=relative_path, signed_Am_uploaded_at=datetime.utcnow()))
-    db.commit()
-    return JSONResponse(content={"message": "Signed AM uploaded successfully", "signed_Am_path": relative_path})
 
 @app.get("/amendment-source-options")
 def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):

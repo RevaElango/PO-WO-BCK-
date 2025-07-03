@@ -165,6 +165,10 @@ class TotalOrder(Base):
     Order_No = Column(String(100), nullable=True)
     requestor_name = Column(String(100), nullable=True)
     Payment_Term = Column(String(100), nullable=True)
+    signed_po_path = Column(String(255), nullable=True)
+    signed_po_uploaded_at = Column(DateTime, nullable=True)
+    bp_date = Column(Date, nullable=True)
+
 
 class UploadedOrder(Base):
     __tablename__ = "uploaded_orders"

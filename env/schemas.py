@@ -238,6 +238,9 @@ class TotalOrder(BaseModel):
     Order_No: Optional[str]
     requestor_name: Optional[str]
     Payment_Term: Optional[str]
+    signed_po_path: Optional[str]
+    signed_po_uploaded_at: Optional[datetime]
+    bp_date: Optional[date]
  
     class Config:
         orm_mode = True
