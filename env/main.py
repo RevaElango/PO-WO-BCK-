@@ -117,6 +117,8 @@ SIGNED_WO_UPLOAD_DIR = "uploads/signed_wos"
 SIGNED_AM_UPLOAD_DIR = "uploads/signed_Ams"
 # Ensure upload directory exists
 CUSTOM_UPLOAD_DIR = "uploads/custom_uploads"
+TOTAL_ORDERS_UPLOAD_DIR = "uploads/total_orders_files"
+os.makedirs(TOTAL_ORDERS_UPLOAD_DIR, exist_ok=True)
 os.makedirs(CUSTOM_UPLOAD_DIR, exist_ok=True)
 
 os.makedirs(SIGNED_PO_UPLOAD_DIR, exist_ok=True)
@@ -128,6 +130,49 @@ app.mount("/uploads/signed_wos", StaticFiles(directory=SIGNED_WO_UPLOAD_DIR), na
 app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), name="signed_Ams")
 # Serve static files
 app.mount("/uploads/custom_uploads", StaticFiles(directory=CUSTOM_UPLOAD_DIR), name="custom_uploads")
+app.mount("/uploads/total_orders_files", StaticFiles(directory=TOTAL_ORDERS_UPLOAD_DIR), name="total_orders_files")
+
+# upload total  
+@app.post("/total-orders/{order_id}/upload-docs")
+def upload_total_order_docs(
+    order_id: int,
+    file: UploadFile = File(...),
+    back_papers_completed_date: str = Form(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    try:
+        parsed_date = datetime.strptime(back_papers_completed_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Date must be in YYYY-MM-DD format")
+
+    filename = f"total_order_doc_{order_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    file_path = os.path.join(TOTAL_ORDERS_UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+
+    relative_path = f"http://localhost:8000/uploads/total_orders_files/{filename}"
+
+    db.execute(
+        update(TotalOrder)
+        .where(TotalOrder.id == order_id)
+        .values(
+            signed_po_path=relative_path,
+            signed_po_uploaded_at=datetime.utcnow(),
+            bp_date=parsed_date
+        )
+    )
+    db.commit()
+
+    return JSONResponse(content={
+        "message": "Total Order document uploaded successfully",
+        "file_path": relative_path,
+        "bp_date": parsed_date.isoformat()
+    })
 
 # Upload Signed PO
 @app.post("/purchase-orders/{po_id}/upload-signed-po")
@@ -231,6 +276,16 @@ def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_cu
 def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_total_orders(db)
 
+
+@app.get("/amendment-source-options")
+def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    po_numbers = db.query(PurchaseOrder.po_number).all()
+    wo_numbers = db.query(WorkOrder.work_order_no).all()
+
+    return {
+        "purchase_orders": [po[0] for po in po_numbers],
+        "work_orders": [wo[0] for wo in wo_numbers]
+    }
 
 @app.post("/upload-order-file")
 def upload_order_file(
