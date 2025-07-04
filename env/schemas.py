@@ -25,7 +25,12 @@ class PurchaseOrderItemCreate(BaseModel):
     quantity: int
     unit_price: int
     item_total: int
+<<<<<<< HEAD
  
+=======
+    gst: float  # ✅ Added GST as mandatory
+
+>>>>>>> 3dcec0d (GST date po order)
 class PurchaseOrderItem(PurchaseOrderItemCreate):
     id: int
  
@@ -40,15 +45,17 @@ class PurchaseOrderCreate(BaseModel):
     indent_date: date
     requester_name: str
     quotation_number: Optional[str] = None
+    quotation_date: Optional[date] = None  # Optional if needed
     email: Optional[str] = None
     dated: Optional[date] = None
     total_cost: int
+    total_including_gst: float  # 💡 Add this
     delivery_date: date
     payment_terms: str
     additional_terms: Optional[str] = None
     delivery_mode: str
     signed_po_path :Optional[str] = None
-    signed_po_uploaded_at: Optional[datetime] = None # ✅ Correct type
+    signed_po_uploaded_at: Optional[datetime] = None
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
     project_keyword: Optional[str] = None
@@ -57,8 +64,13 @@ class PurchaseOrderCreate(BaseModel):
     include_annexure: bool = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
+<<<<<<< HEAD
     items: List  # assume defined elsewhere
  
+=======
+    items: List[PurchaseOrderItemCreate]  # ✅ Make sure this comes *after* the class is defined
+
+>>>>>>> 3dcec0d (GST date po order)
     @field_validator("supplier_name", check_fields=False)
     @classmethod
     def supplier_name_valid(cls, v):
@@ -85,6 +97,8 @@ class PurchaseOrderItem(BaseModel):
     unit_price: int
     item_total: int
  
+    gst: float  # ✅ Added GST field here as well
+
     class Config:
         orm_mode = True
  
@@ -96,6 +110,7 @@ class PurchaseOrder(BaseModel):
     supplier_name: Optional[str]
     supplier_address: Optional[str]
     quotation_number: Optional[str]
+    quotation_date: Optional[date]
     email: Optional[str]
     dated: Optional[date]
     additional_terms: Optional[str]
