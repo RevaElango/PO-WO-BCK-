@@ -24,9 +24,12 @@ class PurchaseOrder(Base):
     indent_date = Column(Date, nullable=True)  # ✅ Add this
     requester_name = Column(String(100))
     quotation_number = Column(String, nullable=True)
+    quotation_date = Column(Date, nullable=True)  # ✅ New field
     email = Column(String(100), nullable=True)
     dated = Column(Date, nullable=True)
     total_cost = Column(Integer)  # 💰 Grand total of all items
+    total_including_gst = Column(Float, nullable=False, default=0.0)  # 💡 Add this
+
 
     delivery_date = Column(Date, nullable=False)
     payment_terms = Column(String, nullable=False)
@@ -63,6 +66,7 @@ class PurchaseOrderItem(Base):
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Integer, nullable=False)
     item_total = Column(Integer, nullable=False)
+    gst = Column(Float, nullable=False, default=0.0)  # ✅ Added GST field
 
     po = relationship("PurchaseOrder", back_populates="items")
 
