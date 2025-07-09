@@ -247,13 +247,15 @@ def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_c
 
 @app.get("/amendment-source-options")
 def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    po_data = db.query(
+    # Fetch POs with supplier_address
+    po_list = db.query(
         PurchaseOrder.po_number,
         PurchaseOrder.supplier_name,
         PurchaseOrder.supplier_address
     ).all()
 
-    wo_data = db.query(
+    # Fetch WOs with address
+    wo_list = db.query(
         WorkOrder.work_order_no,
         WorkOrder.supplier_name,
         WorkOrder.address
@@ -264,15 +266,17 @@ def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_cu
             {
                 "po_number": po.po_number,
                 "supplier_name": po.supplier_name,
-                "supplier_address": po.supplier_address
-            } for po in po_data
+                "supplier_address": po.supplier_address  # ✅ keep supplier_address
+            }
+            for po in po_list
         ],
         "work_orders": [
             {
                 "work_order_no": wo.work_order_no,
                 "supplier_name": wo.supplier_name,
-                "supplier_address": wo.address
-            } for wo in wo_data
+                "supplier_address": wo.address  # ✅ map WO 'address' to supplier_address
+            }
+            for wo in wo_list
         ]
     }
 
