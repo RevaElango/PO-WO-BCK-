@@ -25,12 +25,8 @@ class PurchaseOrderItemCreate(BaseModel):
     quantity: int
     unit_price: int
     item_total: int
-<<<<<<< HEAD
- 
-=======
     gst: float  # ✅ Added GST as mandatory
 
->>>>>>> 3dcec0d (GST date po order)
 class PurchaseOrderItem(PurchaseOrderItemCreate):
     id: int
  
@@ -64,13 +60,8 @@ class PurchaseOrderCreate(BaseModel):
     include_annexure: bool = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
-<<<<<<< HEAD
-    items: List  # assume defined elsewhere
- 
-=======
     items: List[PurchaseOrderItemCreate]  # ✅ Make sure this comes *after* the class is defined
 
->>>>>>> 3dcec0d (GST date po order)
     @field_validator("supplier_name", check_fields=False)
     @classmethod
     def supplier_name_valid(cls, v):
