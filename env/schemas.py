@@ -61,6 +61,8 @@ class PurchaseOrderCreate(BaseModel):
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
     items: List[PurchaseOrderItemCreate]  # ✅ Make sure this comes *after* the class is defined
+    preview_file_path: Optional[str] = None
+
 
     @field_validator("supplier_name", check_fields=False)
     @classmethod
@@ -112,7 +114,11 @@ class PurchaseOrder(BaseModel):
     items: List[PurchaseOrderItem]
     created_at: datetime
     updated_at: datetime
+<<<<<<< HEAD
 
+=======
+    preview_file_path: Optional[str]
+>>>>>>> f83ddf8 (po_savedpreview)
     class Config:
         orm_mode = True
 
@@ -247,6 +253,7 @@ class TotalOrder(BaseModel):
     signed_po_path: Optional[str]
     signed_po_uploaded_at: Optional[datetime]
     bp_date: Optional[date]
+    preview_files: Optional[str]
  
     class Config:
         orm_mode = True
