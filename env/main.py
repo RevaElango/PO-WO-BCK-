@@ -79,8 +79,91 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer", "expires_in_minutes": ACCESS_TOKEN_EXPIRE_MINUTES}
 
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
-def create_po(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    return crud.create_po(db=db, po=po)
+def create_po(
+    po_number: str = Form(...),
+    po_date: str = Form(...),
+    supplier_name: str = Form(...),
+    supplier_address: str = Form(...),
+    indent_date: str = Form(...),
+    requester_name: str = Form(...),
+    quotation_number: str = Form(None),
+    quotation_date: str = Form(None),
+    email: str = Form(None),
+    dated: str = Form(None),
+    total_cost: int = Form(...),
+    total_including_gst: float = Form(...),
+    delivery_date: str = Form(...),
+    payment_terms: str = Form(...),
+    additional_terms: str = Form(None),
+    delivery_mode: str = Form(...),
+    is_asset: bool = Form(False),
+    asset_type: str = Form(None),
+    include_annexure: bool = Form(False),
+    annexure_text: str = Form(None),
+    annexure_file_path: str = Form(None),
+    project_keyword: str = Form(None),
+    prefix: str = Form(None),
+    suffix: str = Form(None),
+    items: str = Form(...),  # JSON string, will parse manually
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    import json
+    items_list = json.loads(items)  # Convert items JSON string to Python list
+
+    # ✅ Now use the values to build a POCreate schema manually
+    po_data = schemas.PurchaseOrderCreate(
+        po_number=po_number,
+        po_date=po_date,
+        supplier_name=supplier_name,
+        supplier_address=supplier_address,
+        indent_date=indent_date,
+        requester_name=requester_name,
+        quotation_number=quotation_number,
+        quotation_date=quotation_date,
+        email=email,
+        dated=dated,
+        total_cost=total_cost,
+        total_including_gst=total_including_gst,
+        delivery_date=delivery_date,
+        payment_terms=payment_terms,
+        additional_terms=additional_terms,
+        delivery_mode=delivery_mode,
+        is_asset=is_asset,
+        asset_type=asset_type,
+        include_annexure=include_annexure,
+        annexure_text=annexure_text,
+        annexure_file_path=annexure_file_path,
+        project_keyword=project_keyword,
+        prefix=prefix,
+        suffix=suffix,
+        items=items_list
+    )
+
+    db_po = crud.create_po(db=db, po=po_data)
+
+    # ✅ Save file (optional)
+    if file and file.content_type == "application/pdf":
+        import os
+        from datetime import datetime
+
+        safe_po_number = po_number.replace("/", "_")
+        filename = f"generated_po_{safe_po_number}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        generated_po_dir = "uploads/generated_po_files"
+        os.makedirs(generated_po_dir, exist_ok=True)
+        file_path = os.path.join(generated_po_dir, filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        relative_url = f"http://localhost:8000/uploads/generated_po_files/{filename}"
+        db_po.preview_file_path = relative_url
+        db.commit()
+
+    return db_po
+
+
 
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -131,6 +214,11 @@ app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), na
 # Serve static files
 app.mount("/uploads/custom_uploads", StaticFiles(directory=CUSTOM_UPLOAD_DIR), name="custom_uploads")
 app.mount("/uploads/total_orders_files", StaticFiles(directory=TOTAL_ORDERS_UPLOAD_DIR), name="total_orders_files")
+
+GENERATED_PO_DIR = "uploads/generated_po_files"
+os.makedirs(GENERATED_PO_DIR, exist_ok=True)
+app.mount("/uploads/generated_po_files", StaticFiles(directory=GENERATED_PO_DIR), name="generated_po_files")
+
 
 # upload total  
 @app.post("/total-orders/{order_id}/upload-docs")
@@ -331,3 +419,5 @@ def get_uploaded_orders(db: Session = Depends(get_db), user: dict = Depends(get_
         }
         for u in uploads
     ]
+
+
