@@ -114,11 +114,7 @@ class PurchaseOrder(BaseModel):
     items: List[PurchaseOrderItem]
     created_at: datetime
     updated_at: datetime
-<<<<<<< HEAD
-
-=======
     preview_file_path: Optional[str]
->>>>>>> f83ddf8 (po_savedpreview)
     class Config:
         orm_mode = True
 
