@@ -54,6 +54,8 @@ class PurchaseOrder(Base):
 
     items = relationship("PurchaseOrderItem", back_populates="po", cascade="all, delete-orphan")
     project_no = Column(String, nullable=True)  # ✅ This is required
+    preview_file_path = Column(String(255), nullable=True)
+
 
 
 class PurchaseOrderItem(Base):
@@ -172,7 +174,7 @@ class TotalOrder(Base):
     signed_po_path = Column(String(255), nullable=True)
     signed_po_uploaded_at = Column(DateTime, nullable=True)
     bp_date = Column(Date, nullable=True)
-
+    preview_files = Column(String(255), nullable=True)
 
 class UploadedOrder(Base):
     __tablename__ = "uploaded_orders"
