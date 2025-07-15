@@ -147,8 +147,8 @@ class WorkOrderBase(BaseModel):
     signed_wo_path :Optional[str] = None
     signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
     project_keyword: Optional[str] = None  # ✅ New field
-
-
+    preview_file_path: Optional[str] = None
+ 
     @field_validator("date", check_fields=False)
     @classmethod
     def validate_work_order_date(cls, v: date):

@@ -169,8 +169,78 @@ def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_use
     return crud.get_all_pos(db)
 
 @app.post("/work-orders/", response_model=schemas.WorkOrder)
-def create_work_order(work_order: schemas.WorkOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    return crud.create_work_order(db=db, work_order=work_order)
+def create_work_order(
+    work_order_no: str = Form(...),
+    prefix: str = Form(...),
+    suffix: str = Form(...),
+    date: str = Form(...),
+    quotation_no: str = Form(None),
+    email: str = Form(None),
+    supplier_name: str = Form(...),
+    address: str = Form(...),
+    quotation_date: str = Form(...),
+    indent_date: str = Form(...),
+    requester_name: str = Form(...),
+    scope_of_work: str = Form(...),
+    value_of_service: float = Form(...),
+    tax: float = Form(...),
+    duration_of_service: str = Form(...),
+    payment_term: str = Form(...),
+    deliverables: str = Form(...),
+    additional_terms: str = Form(None),
+    include_annexure: bool = Form(False),
+    annexure_text: str = Form(None),
+    annexure_file_path: str = Form(None),
+    project_keyword: str = Form(None),
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # Create WorkOrderCreate schema instance
+    work_order = schemas.WorkOrderCreate(
+        work_order_no=work_order_no,
+        prefix=prefix,
+        suffix=suffix,
+        date=date,
+        quotation_no=quotation_no,
+        email=email,
+        supplier_name=supplier_name,
+        address=address,
+        quotation_date=quotation_date,
+        indent_date=indent_date,
+        requester_name=requester_name,
+        scope_of_work=scope_of_work,
+        value_of_service=value_of_service,
+        tax=tax,
+        duration_of_service=duration_of_service,
+        payment_term=payment_term,
+        deliverables=deliverables,
+        additional_terms=additional_terms,
+        include_annexure=include_annexure,
+        annexure_text=annexure_text,
+        annexure_file_path=annexure_file_path,
+        project_keyword=project_keyword
+    )
+
+    # Store in DB
+    db_work_order = crud.create_work_order(db=db, work_order=work_order)
+
+    # ✅ Save uploaded PDF
+    if file and file.content_type == "application/pdf":
+        safe_no = work_order_no.replace("/", "_")
+        filename = f"generated_wo_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        wo_dir = "uploads/generated_work_order_pdfs"
+        os.makedirs(wo_dir, exist_ok=True)
+        file_path = os.path.join(wo_dir, filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        relative_url = f"http://localhost:8000/uploads/generated_work_order_pdfs/{filename}"
+        db_work_order.preview_file_path = relative_url
+        db.commit()
+
+    return db_work_order
 
 @app.get("/work-orders/view", response_model=List[schemas.WorkOrder])
 def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -217,6 +287,11 @@ app.mount("/uploads/total_orders_files", StaticFiles(directory=TOTAL_ORDERS_UPLO
 GENERATED_PO_DIR = "uploads/generated_po_files"
 os.makedirs(GENERATED_PO_DIR, exist_ok=True)
 app.mount("/uploads/generated_po_files", StaticFiles(directory=GENERATED_PO_DIR), name="generated_po_files")
+
+WORK_ORDER_PDF_DIR = "uploads/generated_work_order_pdfs"
+os.makedirs(WORK_ORDER_PDF_DIR, exist_ok=True)
+
+app.mount("/uploads/generated_work_order_pdfs", StaticFiles(directory=WORK_ORDER_PDF_DIR), name="generated_work_order_pdfs")
 
 
 # upload total  
