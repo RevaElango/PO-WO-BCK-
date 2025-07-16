@@ -72,7 +72,7 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
-        data={"user": {"id": db_user.id, "email": db_user.email}},
+        data={"user": {"id": db_user.id, "email": db_user.email,"username": db_user.username}},
         expires_delta=access_token_expires,
     )
 
@@ -138,7 +138,8 @@ def create_po(
         project_keyword=project_keyword,
         prefix=prefix,
         suffix=suffix,
-        items=items_list
+        items=items_list,
+        created_by=user['username']
     )
 
     db_po = crud.create_po(db=db, po=po_data)
@@ -220,7 +221,8 @@ def create_work_order(
         include_annexure=include_annexure,
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
-        project_keyword=project_keyword
+        project_keyword=project_keyword,
+        created_by=user['username']
     )
 
     # Store in DB

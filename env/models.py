@@ -26,6 +26,7 @@ class PurchaseOrder(Base):
     quotation_number = Column(String, nullable=True)
     quotation_date = Column(Date, nullable=True)  # ✅ New field
     email = Column(String(100), nullable=True)
+    created_by = Column(String(100), nullable=True)
     dated = Column(Date, nullable=True)
     total_cost = Column(Integer)  # 💰 Grand total of all items
     total_including_gst = Column(Float, nullable=False, default=0.0)  # 💡 Add this
@@ -92,6 +93,7 @@ class WorkOrder(Base):
     date = Column(Date, nullable=False)
     quotation_no = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False)
+    created_by = Column(String(100), nullable=True)
     quotation_date = Column(Date, nullable=False)
     requester_name = Column(String(100))
     indent_date = Column(Date, nullable=True)  # ✅ Add this
@@ -163,7 +165,7 @@ class TotalOrder(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     indent_date = Column(Date, nullable=True)
     orders_date = Column(Date, nullable=True)
-    email = Column(String(255), nullable=True)
+    created_by = Column(String(100), nullable=True)
     Item_Description = Column(Text, nullable=True)
     Supplier_Name = Column(String(255), nullable=True)
     Quantity = Column(Integer, nullable=True)

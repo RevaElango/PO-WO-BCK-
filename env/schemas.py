@@ -43,6 +43,7 @@ class PurchaseOrderCreate(BaseModel):
     quotation_number: Optional[str] = None
     quotation_date: Optional[date] = None  # Optional if needed
     email: Optional[str] = None
+    created_by: str
     dated: Optional[date] = None
     total_cost: int
     total_including_gst: float  # 💡 Add this
@@ -105,6 +106,7 @@ class PurchaseOrder(BaseModel):
     quotation_number: Optional[str]
     quotation_date: Optional[date]
     email: Optional[str]
+    created_by: Optional[str]
     dated: Optional[date]
     additional_terms: Optional[str]
     delivery_date: Optional[date]
@@ -177,12 +179,14 @@ class WorkOrderBase(BaseModel):
         return v or None
  
 class WorkOrderCreate(WorkOrderBase):
+    created_by: str  # ✅ Add this line
     pass
  
 class WorkOrder(WorkOrderBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    created_by: Optional[str]
  
     class Config:
         orm_mode = True
@@ -237,7 +241,7 @@ class TotalOrder(BaseModel):
     id: int
     indent_date: Optional[date]
     orders_date: Optional[date]
-    email: Optional[str]
+    created_by: Optional[str]
     Item_Description: Optional[str]
     Supplier_Name: Optional[str]
     Quantity: Optional[int]
