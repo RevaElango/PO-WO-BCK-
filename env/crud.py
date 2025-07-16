@@ -48,6 +48,7 @@ def create_work_order(db: Session, work_order: schemas.WorkOrderCreate):
     # Convert to dict and add project_no
     work_order_data = work_order.dict()
     work_order_data["project_no"] = project_no  # Add it to the payload
+    work_order_data["created_by"] = work_order.created_by  # ✅ Add this
 
     db_work_order = models.WorkOrder(**work_order_data)
     db.add(db_work_order)
