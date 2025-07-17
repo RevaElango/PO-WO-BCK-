@@ -138,6 +138,7 @@ class AmendmentOrder(Base):
     __tablename__ = "amendment_orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    reference_type = Column(String(10), nullable=False) 
     reference_no = Column(String(100), nullable=True)
     date = Column(Date, nullable=False)
     company_name = Column(Text, nullable=False)
