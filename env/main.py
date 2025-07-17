@@ -138,7 +138,8 @@ def create_po(
         prefix=prefix,
         suffix=suffix,
         items=items_list,
-        created_by=user['username']
+        created_by=user['username'],
+        amendment="No"
     )
 
     db_po = crud.create_po(db=db, po=po_data)
@@ -221,7 +222,8 @@ def create_work_order(
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
         project_keyword=project_keyword,
-        created_by=user['username']
+        created_by=user['username'],
+        amendment="No"  
     )
 
     # Store in DB
@@ -250,7 +252,7 @@ def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_cur
 
 @app.post("/amendment-orders/", response_model=schemas.AMOrder)
 def create_am_order(am_order: schemas.AMOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    crud.mark_reference_amended(db, am_order.reference_no)
+    crud.mark_reference_amended(db, am_order.reference_no, am_order.reference_type)  # ✅ Pass reference_type
     return crud.create_am_order(db=db, am_order=am_order)
 
 @app.get("/amendment-orders/view", response_model=List[schemas.AMOrder])
