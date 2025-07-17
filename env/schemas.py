@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional,Literal
 import re
 
 # ---------------------------
@@ -227,6 +227,7 @@ class WorkOrder(WorkOrderBase):
 
 class AMOrderBase(BaseModel):
     reference_no: str
+    reference_type: Literal['PO', 'WO']  # ✅ Add this line
     date: date
     company_name: str
     address: str
