@@ -258,3 +258,8 @@ class TotalOrder(BaseModel):
  
     class Config:
         orm_mode = True
+
+class SupplierCreate(BaseModel):
+    supplier_name: str
+    supplier_address: str
+

@@ -6,6 +6,7 @@ from typing import List
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import schemas, crud
+from schemas import *
 from database import SessionLocal, engine, Base
 from models import *
 import os
@@ -63,7 +64,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     except JWTError:
         raise HTTPException(status_code=401, detail="Token is invalid or expired")
 
-@app.post("/login")
+@app.post("/login", response_model=TokenResponse)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if not db_user or db_user.password_hash != user.password:
@@ -71,11 +72,21 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
-        data={"user": {"id": db_user.id, "email": db_user.email,"username": db_user.username}},
+        data={
+            "user": {
+                "id": db_user.id,
+                "email": db_user.email,
+                "username": db_user.username,
+                "role_id": db_user.role_id,
+            }
+        },
         expires_delta=access_token_expires,
     )
 
-    return {"access_token": token, "token_type": "bearer", "expires_in_minutes": ACCESS_TOKEN_EXPIRE_MINUTES}
+    return TokenResponse(
+        access_token=token,
+        expires_in_minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
 
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
 def create_po(
@@ -446,9 +457,9 @@ def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_cu
         ]
     }
 
-@app.get("/total-orders", response_model=List[schemas.TotalOrder])
-def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    return crud.get_all_total_orders(db)
+# @app.get("/total-orders", response_model=List[schemas.TotalOrder])
+# def fetch_total_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+#     return crud.get_all_total_orders(db)
 
 
 @app.post("/upload-order-file")
@@ -498,4 +509,23 @@ def get_uploaded_orders(db: Session = Depends(get_db), user: dict = Depends(get_
         for u in uploads
     ]
 
+@app.post("/suppliers")
+def add_supplier(
+    supplier: SupplierCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user["role_id"] != 1:
+        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
+    new_supplier = Supplier(
+        supplier_name=supplier.supplier_name,
+        supplier_address=supplier.supplier_address,
+        type=''  # Default value
+    )
+    db.add(new_supplier)
+    db.commit()
+    db.refresh(new_supplier)
+
+    return {"message": "Supplier added successfully"}  # ✅ Now no validation error
 

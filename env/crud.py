@@ -80,7 +80,7 @@ def get_dashboard_counts(db: Session):
     po_count = db.query(models.PurchaseOrder).count()
     wo_count = db.query(models.WorkOrder).count()
     am_count = db.query(models.AmendmentOrder).count()
-    total = po_count + wo_count 
+    total = db.query(models.TotalOrder).count()
     return {
         "purchase_orders": po_count,
         "work_orders": wo_count,
