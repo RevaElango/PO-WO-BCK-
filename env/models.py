@@ -9,9 +9,19 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(100))
     email = Column(String(100), unique=True, index=True)
-    password_hash = Column(String(255))  # Using as plain password for now
+    password_hash = Column(String(255))  # In real-world, store hashed
     created_at = Column(DateTime, default=datetime.utcnow)
+    role_id = Column(Integer, ForeignKey("roles.id"), default=2)
 
+    role = relationship("Role", back_populates="users")
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True)
+
+    users = relationship("User", back_populates="role")
 
 class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
