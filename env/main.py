@@ -8,11 +8,12 @@ from datetime import datetime, timedelta
 import schemas, crud
 from schemas import *
 from database import SessionLocal, engine, Base
-from models import *
+from models import * 
 import os
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import update
+import json
 
 # Secret key and algorithm
 SECRET_KEY = "your-secret-key"
@@ -528,4 +529,124 @@ def add_supplier(
     db.refresh(new_supplier)
 
     return {"message": "Supplier added successfully"}  # ✅ Now no validation error
+
+@app.get("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
+def get_purchase_order(po_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    # Fetch PO with related items
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+
+    # Fetch items linked to this PO
+    items = db.query(PurchaseOrderItem).filter(PurchaseOrderItem.po_id == po.id).all()
+    po.items = items  # ✅ attach items so it's serialized in response
+
+    # Optional: print or log what’s going out for debug
+    print("Returning PO:", {
+        "id": po.id,
+        "po_number": po.po_number,
+        "prefix": po.prefix,
+        "suffix": po.suffix,
+        "project_keyword": po.project_keyword,
+        "requester_name": po.requester_name,
+        "items_count": len(po.items)
+    })
+
+    return po
+
+@app.put("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
+async def update_po(
+    po_id: int,
+    po_number: str = Form(...),
+    po_date: str = Form(...),
+    supplier_name: str = Form(...),
+    supplier_address: str = Form(...),
+    indent_date: str = Form(...),
+    requester_name: str = Form(...),
+    quotation_number: str = Form(None),
+    quotation_date: str = Form(None),
+    email: str = Form(None),
+    dated: str = Form(None),
+    total_cost: float = Form(...),
+    total_including_gst: float = Form(...),
+    delivery_date: str = Form(...),
+    payment_terms: str = Form(...),
+    delivery_mode: str = Form(...),
+    additional_terms: str = Form(None),
+    is_asset: bool = Form(False),
+    asset_type: str = Form(None),
+    include_annexure: bool = Form(False),
+    annexure_text: str = Form(None),
+    annexure_file_path: str = Form(None),
+    project_keyword: str = Form(None),
+    prefix: str = Form(None),
+    suffix: str = Form(None),
+    items: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    # 1. Get PO
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase Order not found")
+
+    # 2. Ensure directory exists
+    pdf_dir = "uploads/generated_po_files"
+    os.makedirs(pdf_dir, exist_ok=True)
+
+    # 3. Save PDF
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    pdf_filename = f"generated_po_{po_number.replace('/', '_')}_{timestamp}.pdf"
+    pdf_path = os.path.join(pdf_dir, pdf_filename)
+
+    with open(pdf_path, "wb") as f:
+      f.write(await file.read())
+
+    base_url = "http://localhost:8000"
+    # 4. Update fields
+    po.po_number = po_number
+    po.po_date = po_date
+    po.supplier_name = supplier_name
+    po.supplier_address = supplier_address
+    po.indent_date = indent_date
+    po.requester_name = requester_name
+    po.quotation_number = quotation_number
+    po.quotation_date = quotation_date
+    po.email = email
+    po.dated = dated
+    po.total_cost = total_cost
+    po.total_including_gst = total_including_gst
+    po.delivery_date = delivery_date
+    po.payment_terms = payment_terms
+    po.delivery_mode = delivery_mode
+    po.additional_terms = additional_terms
+    po.is_asset = is_asset
+    po.asset_type = asset_type
+    po.include_annexure = include_annexure
+    po.annexure_text = annexure_text
+    po.annexure_file_path = annexure_file_path
+    po.project_keyword = project_keyword
+    po.prefix = prefix
+    po.suffix = suffix
+    po.preview_file_path = f"{base_url}/uploads/generated_po_files/{pdf_filename}"
+
+    # 5. Replace items
+    db.query(PurchaseOrderItem).filter(PurchaseOrderItem.po_id == po.id).delete()
+
+    for item in json.loads(items):
+        db.add(PurchaseOrderItem(
+            po_id=po.id,
+            item_description=item['item_description'],
+            quantity=item['quantity'],
+            unit_price=item['unit_price'],
+            item_total=item['item_total'],
+            gst=item['gst']
+        ))
+
+    db.commit()
+    db.refresh(po)
+    return po
+
 
