@@ -20,18 +20,21 @@ class TokenResponse(BaseModel):
 # Purchase Order Schemas
 # ---------------------------
 
-class PurchaseOrderItemCreate(BaseModel):
+class PurchaseOrderItemBase(BaseModel):
     item_description: str
     quantity: int
     unit_price: int
     item_total: int
-    gst: float  # ✅ Added GST as mandatory
+    gst: float
 
-class PurchaseOrderItem(PurchaseOrderItemCreate):
+class PurchaseOrderItemCreate(PurchaseOrderItemBase):
+    pass
+
+class PurchaseOrderItem(PurchaseOrderItemBase):
     id: int
-
     class Config:
         orm_mode = True
+
 
 class PurchaseOrderCreate(BaseModel):
     po_number: str
@@ -41,17 +44,17 @@ class PurchaseOrderCreate(BaseModel):
     indent_date: date
     requester_name: str
     quotation_number: Optional[str] = None
-    quotation_date: Optional[date] = None  # Optional if needed
+    quotation_date: Optional[date] = None
     email: Optional[str] = None
     created_by: str
     dated: Optional[date] = None
     total_cost: int
-    total_including_gst: float  # 💡 Add this
+    total_including_gst: float
     delivery_date: date
     payment_terms: str
     additional_terms: Optional[str] = None
     delivery_mode: str
-    signed_po_path :Optional[str] = None
+    signed_po_path: Optional[str] = None
     signed_po_uploaded_at: Optional[datetime] = None
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
@@ -61,8 +64,22 @@ class PurchaseOrderCreate(BaseModel):
     include_annexure: bool = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
-    items: List[PurchaseOrderItemCreate]  # ✅ Make sure this comes *after* the class is defined
     preview_file_path: Optional[str] = None
+    items: List[PurchaseOrderItemCreate]
+
+    class Config:
+        orm_mode = True
+
+
+class PurchaseOrder(PurchaseOrderCreate):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    items: List[PurchaseOrderItem]  # override to include item IDs
+
+    class Config:
+        orm_mode = True
+
 
 
     @field_validator("supplier_name", check_fields=False)
@@ -99,6 +116,11 @@ class PurchaseOrderItem(BaseModel):
 class PurchaseOrder(BaseModel):
     id: int
     po_number: str
+    prefix: Optional[str]  # ✅ Add this
+    suffix: Optional[str]  # ✅ Add this
+    project_keyword: Optional[str]  # ✅ Add this
+    requester_name: Optional[str]  # ✅ Add this
+    indent_date: Optional[date]
     po_date: Optional[date]
     supplier_name: Optional[str]
     supplier_address: Optional[str]
@@ -112,13 +134,22 @@ class PurchaseOrder(BaseModel):
     payment_terms: Optional[str]
     delivery_mode: Optional[str]
     total_cost: int
+    total_including_gst: Optional[float]
     signed_po_path: Optional[str]
-    items: List[PurchaseOrderItem]
+    signed_po_uploaded_at: Optional[datetime]
+    include_annexure: Optional[bool]
+    annexure_text: Optional[str]
+    annexure_file_path: Optional[str]
+    is_asset: Optional[bool]
+    asset_type: Optional[str]
+    preview_file_path: Optional[str]
     created_at: datetime
     updated_at: datetime
-    preview_file_path: Optional[str]
+    items: List[PurchaseOrderItem]
+
     class Config:
         orm_mode = True
+
 
 
 
