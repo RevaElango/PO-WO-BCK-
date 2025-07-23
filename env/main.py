@@ -649,5 +649,85 @@ async def update_po(
     db.commit()
     db.refresh(po)
     return po
+@app.get("/work-orders/{wo_id}", response_model=schemas.WorkOrder)
+def get_work_order(wo_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work Order not found")
+    return wo
+@app.put("/work-orders/{wo_id}", response_model=schemas.WorkOrder)
+async def update_work_order(
+    wo_id: int,
+    work_order_no: str = Form(...),
+    prefix: str = Form(...),
+    suffix: str = Form(...),
+    date: str = Form(...),
+    quotation_no: str = Form(None),
+    quotation_date: str = Form(None),
+    email: str = Form(None),
+    supplier_name: str = Form(...),
+    address: str = Form(...),
+    indent_date: str = Form(...),
+    requester_name: str = Form(...),
+    scope_of_work: str = Form(...),
+    value_of_service: int = Form(...),
+    tax: int = Form(...),
+    duration_of_service: str = Form(...),
+    payment_term: str = Form(...),
+    deliverables: str = Form(None),
+    additional_terms: str = Form(None),
+    include_annexure: bool = Form(False),
+    annexure_text: str = Form(None),
+    annexure_file_path: str = Form(None),
+    project_keyword: str = Form(None),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work Order not found")
 
+    # Save new PDF to correct folder
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    safe_wo_number = work_order_no.replace("/", "_")
+    pdf_filename = f"generated_wo_{safe_wo_number}_{timestamp}.pdf"
+    pdf_dir = "uploads/generated_work_order_pdfs"
+    os.makedirs(pdf_dir, exist_ok=True)
+    pdf_path = os.path.join(pdf_dir, pdf_filename)
 
+    with open(pdf_path, "wb") as f:
+        f.write(await file.read())
+
+    # Full preview URL (served via /uploads mount)
+    preview_url = f"http://localhost:8000/uploads/generated_work_order_pdfs/{pdf_filename}"
+
+    # Update DB fields
+    wo.work_order_no = work_order_no
+    wo.prefix = prefix
+    wo.suffix = suffix
+    wo.date = date
+    wo.quotation_no = quotation_no
+    wo.quotation_date = quotation_date
+    wo.email = email
+    wo.supplier_name = supplier_name
+    wo.address = address
+    wo.indent_date = indent_date
+    wo.requester_name = requester_name
+    wo.scope_of_work = scope_of_work
+    wo.value_of_service = value_of_service
+    wo.tax = tax
+    wo.duration_of_service = duration_of_service
+    wo.payment_term = payment_term
+    wo.deliverables = deliverables
+    wo.additional_terms = additional_terms
+    wo.include_annexure = include_annexure
+    wo.annexure_text = annexure_text
+    wo.annexure_file_path = annexure_file_path
+    wo.project_keyword = project_keyword
+    wo.preview_file_path = preview_url
+    wo.updated_at = datetime.now()
+
+    db.commit()
+    db.refresh(wo)
+    return wo
