@@ -166,7 +166,7 @@ class WorkOrderBase(BaseModel):
     date: date
     quotation_no: Optional[str]
     email: Optional[EmailStr]
-    quotation_date: date
+    quotation_date: Optional[date] = None  # ✅ Now it's optional
     requester_name: str
     indent_date: date
     scope_of_work: str
@@ -193,12 +193,11 @@ class WorkOrderBase(BaseModel):
         if v > date.today():
             raise ValueError("Work order date cannot be a future date")
         return v
- 
-    @field_validator("quotation_date", check_fields=False)
-    @classmethod
-    def validate_quotation_date(cls, v: date):
-        if v > date.today():
-            raise ValueError("Quotation date cannot be a future date")
+
+    @field_validator('quotation_date')
+    def validate_quotation_date(cls, v):
+        if v is not None and v > date.today():
+            raise ValueError("Quotation date cannot be in the future.")
         return v
  
     @field_validator("value_of_service", "tax", check_fields=False)
