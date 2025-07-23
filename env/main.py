@@ -191,7 +191,7 @@ def create_work_order(
     email: str = Form(None),
     supplier_name: str = Form(...),
     address: str = Form(...),
-    quotation_date: str = Form(...),
+    quotation_date: str = Form(None),
     indent_date: str = Form(...),
     requester_name: str = Form(...),
     scope_of_work: str = Form(...),
