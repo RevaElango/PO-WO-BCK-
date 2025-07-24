@@ -273,7 +273,7 @@ class TotalOrder(BaseModel):
     created_by: Optional[str]
     Item_Description: Optional[str]
     Supplier_Name: Optional[str]
-    Quantity: Optional[int]
+    Quantity: Optional[str]
     Total_Cost: Optional[float]
     project_no: Optional[str]
     Order_No: Optional[str]
