@@ -115,6 +115,7 @@ def create_po(
     project_keyword: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
+    final_suffix : str = Form(None),
     items: str = Form(...),  # JSON string, will parse manually
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
@@ -149,6 +150,7 @@ def create_po(
         project_keyword=project_keyword,
         prefix=prefix,
         suffix=suffix,
+        final_suffix=final_suffix,
         items=items_list,
         created_by=user['username']
     )

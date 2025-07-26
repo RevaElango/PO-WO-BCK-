@@ -55,6 +55,8 @@ class PurchaseOrder(Base):
     project_keyword = Column(String, nullable=True)
     prefix = Column(String, nullable=True)
     suffix = Column(String, nullable=True)
+    final_suffix = Column(String ,nullable=True)  # ✅ Add this
+
 
     include_annexure = Column(Boolean, default=False)
     annexure_text = Column(String, nullable=True)
