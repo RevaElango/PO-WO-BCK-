@@ -61,6 +61,7 @@ class PurchaseOrderCreate(BaseModel):
     project_keyword: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
+    final_suffix: str  # ✅ Add this
     include_annexure: bool = False
     annexure_text: Optional[str] = None
     annexure_file_path: Optional[str] = None
