@@ -226,21 +226,22 @@ class WorkOrder(WorkOrderBase):
 # ---------------------------
 
 class AMOrderBase(BaseModel):
+    amendment_no: Optional[str] = None
     reference_no: str
     date: date
     company_name: str
     address: str
     req_rec_date: date
     subject: str
-    category: str
-    category_no: str
+    # category: str
+    # category_no: str
     category_date: date
     email: Optional[date] = None  # <-- Change only if really needed (should usually be EmailStr)
-    letter: Optional[date] = None
+    # letter: Optional[date] = None
     content_text: str
-    existing: str
+    # existing: str
     read_as: str
-    additional_items: Optional[str] = None
+    # additional_items: Optional[str] = None
     signed_Am_path :Optional[str] = None
     signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type
 
