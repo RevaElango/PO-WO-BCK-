@@ -63,11 +63,18 @@ def get_all_work_orders(db: Session):
 
 # ✅ Fixed AM Order CRUD functions (correct model name used)
 def create_am_order(db: Session, am_order: schemas.AMOrderCreate):
-    db_am_order = models.AmendmentOrder(**am_order.dict())  # ✅ use AmendmentOrder
+    amendment_no = get_latest_amendment_no(db)
+    am_data = am_order.dict(exclude={"amendment_no"})
+    db_am_order = models.AmendmentOrder(
+        amendment_no=amendment_no,
+        **am_data
+    )
     db.add(db_am_order)
     db.commit()
     db.refresh(db_am_order)
     return db_am_order
+
+
 
 def get_all_total_orders(db: Session):
     return db.query(models.TotalOrder).all()
@@ -98,3 +105,20 @@ def mark_reference_amended(db: Session, reference_no: str):
         wo_number = reference_no.replace("WO:", "").strip()
         db.query(models.WorkOrder).filter(models.WorkOrder.work_order_no == wo_number).update({"amendment": "Yes"})
     db.commit()
+
+def get_latest_amendment_no(db: Session) -> str:
+    latest_order = (
+        db.query(models.AmendmentOrder)
+        .filter(models.AmendmentOrder.amendment_no.like("AO%"))
+        .order_by(models.AmendmentOrder.id.desc())
+        .first()
+    )
+    if latest_order and latest_order.amendment_no:
+        try:
+            last_num = int(latest_order.amendment_no[2:])
+            next_num = last_num + 1
+        except ValueError:
+            next_num = 1
+    else:
+        next_num = 1
+    return f"AO{next_num:02d}"

@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import update
 import json
-
+import models
 # Secret key and algorithm
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
@@ -760,3 +760,13 @@ async def update_work_order(
     db.commit()
     db.refresh(wo)
     return wo
+@app.get("/amendment-orders/next-no")
+def get_next_amendment_no(db: Session = Depends(get_db)):
+    last_order = db.query(models.AmendmentOrder).order_by(models.AmendmentOrder.id.desc()).first()
+    if last_order and last_order.amendment_no:
+        prefix = "AO"
+        last_number = int(last_order.amendment_no.replace(prefix, ""))
+        next_number = f"{prefix}{last_number + 1:02d}"
+    else:
+        next_number = "AO01"
+    return {"next_amendment_no": next_number}
