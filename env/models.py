@@ -162,7 +162,7 @@ class AmendmentOrder(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
+    preview_file_path = Column(String, nullable=True)  # ✅ Add this line
 
 class Supplier(Base):
     __tablename__ = "suppliers"

@@ -242,6 +242,7 @@ class AMOrderBase(BaseModel):
     content_text: str
     # existing: str
     read_as: str
+    preview_file_path: Optional[str] = None
     # additional_items: Optional[str] = None
     signed_Am_path :Optional[str] = None
     signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type

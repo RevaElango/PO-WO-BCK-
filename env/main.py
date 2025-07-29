@@ -262,10 +262,62 @@ def create_work_order(
 def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_work_orders(db)
 
+
 @app.post("/amendment-orders/", response_model=schemas.AMOrder)
-def create_am_order(am_order: schemas.AMOrderCreate, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    crud.mark_reference_amended(db, am_order.reference_no)
-    return crud.create_am_order(db=db, am_order=am_order)
+def create_am_order(
+    amendment_no: str = Form(...),
+    reference_no: str = Form(...),
+    reference_type: str = Form(...),
+    date: str = Form(...),
+    company_name: str = Form(...),
+    address: str = Form(...),
+    req_rec_date: str = Form(...),
+    subject: str = Form(...),
+    category_date: str = Form(...),
+    email: str = Form(...),
+    content_text: str = Form(...),
+    read_as: str = Form(...),
+    file: UploadFile = File(None),  # PDF blob from frontend
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # Create AMOrderCreate object
+    am_order = schemas.AMOrderCreate(
+        amendment_no=amendment_no,
+        reference_no=reference_no,
+        reference_type=reference_type,
+        date=date,
+        company_name=company_name,
+        address=address,
+        req_rec_date=req_rec_date,
+        subject=subject,
+        category_date=category_date,
+        email=email,
+        content_text=content_text,
+        read_as=read_as,
+        created_by=user['username']
+    )
+
+    # Save to DB
+    db_am_order = crud.create_am_order(db=db, am_order=am_order)
+
+    # ✅ Save uploaded PDF if provided
+    if file and file.content_type == "application/pdf":
+        safe_no = amendment_no.replace("/", "_")
+        filename = f"amendment_order_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        ao_dir = "uploads/generated_amendment_order_pdfs"
+        os.makedirs(ao_dir, exist_ok=True)
+        file_path = os.path.join(ao_dir, filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        relative_url = f"http://localhost:8000/{ao_dir}/{filename}"
+        db_am_order.preview_file_path = relative_url
+        db.commit()
+
+    return db_am_order
+
 
 @app.get("/amendment-orders/view", response_model=List[schemas.AMOrder])
 def list_am_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -299,15 +351,20 @@ app.mount("/uploads/signed_Ams", StaticFiles(directory=SIGNED_AM_UPLOAD_DIR), na
 # Serve static files
 app.mount("/uploads/custom_uploads", StaticFiles(directory=CUSTOM_UPLOAD_DIR), name="custom_uploads")
 app.mount("/uploads/total_orders_files", StaticFiles(directory=TOTAL_ORDERS_UPLOAD_DIR), name="total_orders_files")
-
+# purchase order
 GENERATED_PO_DIR = "uploads/generated_po_files"
 os.makedirs(GENERATED_PO_DIR, exist_ok=True)
 app.mount("/uploads/generated_po_files", StaticFiles(directory=GENERATED_PO_DIR), name="generated_po_files")
-
+# work order
 WORK_ORDER_PDF_DIR = "uploads/generated_work_order_pdfs"
 os.makedirs(WORK_ORDER_PDF_DIR, exist_ok=True)
 
 app.mount("/uploads/generated_work_order_pdfs", StaticFiles(directory=WORK_ORDER_PDF_DIR), name="generated_work_order_pdfs")
+# amendment order
+AMENDMENT_ORDER_PDF_DIR = "uploads/generated_amendment_order_pdfs"
+os.makedirs(AMENDMENT_ORDER_PDF_DIR, exist_ok=True)
+
+app.mount("/uploads/generated_amendment_order_pdfs", StaticFiles(directory=AMENDMENT_ORDER_PDF_DIR), name="generated_amendment_order_pdfs")
 
 
 # upload total  
