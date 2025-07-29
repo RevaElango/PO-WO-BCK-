@@ -439,17 +439,51 @@ def upload_signed_wo(wo_id: int, file: UploadFile = File(...), db: Session = Dep
 
 # Upload Signed AM
 @app.post("/Amendment-orders/{Am_id}/upload-signed-Am")
-def upload_signed_Am(Am_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+def upload_signed_Am(
+    Am_id: int,
+    file: UploadFile = File(...),
+    back_papers_completed_date: str = Form(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # ✅ Check file type
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # ✅ Parse date
+    try:
+        parsed_date = datetime.strptime(back_papers_completed_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Date must be in YYYY-MM-DD format")
+
+    # ✅ Save file
     filename = f"signed_Am_{Am_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
     file_path = os.path.join(SIGNED_AM_UPLOAD_DIR, filename)
+
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
+
     relative_path = f"http://localhost:8000/uploads/signed_Ams/{filename}"
-    db.execute(update(AmendmentOrder).where(AmendmentOrder.id == Am_id).values(signed_Am_path=relative_path, signed_Am_uploaded_at=datetime.utcnow()))
+
+    # ✅ Update DB: signed_Am_path, signed_Am_uploaded_at, and bp_date
+    db.execute(
+        update(AmendmentOrder)
+        .where(AmendmentOrder.id == Am_id)
+        .values(
+            signed_Am_path=relative_path,
+            signed_Am_uploaded_at=datetime.utcnow(),
+            bp_date=parsed_date  # ✅ This must exist in your table
+        )
+    )
     db.commit()
-    return JSONResponse(content={"message": "Signed AM uploaded successfully", "signed_Am_path": relative_path})
+
+    return JSONResponse(content={
+        "message": "Signed AM uploaded successfully",
+        "signed_Am_path": relative_path,
+        "bp_date": parsed_date.isoformat()
+    })
+
+
 @app.get("/suppliers")
 def get_suppliers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     suppliers = db.query(Supplier).all()

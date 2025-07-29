@@ -159,10 +159,12 @@ class AmendmentOrder(Base):
     # additional_items = Column(Text, nullable=True)
     signed_Am_path = Column(String(255), nullable=True)
     signed_Am_uploaded_at = Column(DateTime, nullable=True)
-
+    bp_date = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     preview_file_path = Column(String, nullable=True)  # ✅ Add this line
+    bp_date = Column(Date, nullable=True)
+
 
 class Supplier(Base):
     __tablename__ = "suppliers"

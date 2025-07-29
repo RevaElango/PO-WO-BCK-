@@ -246,6 +246,8 @@ class AMOrderBase(BaseModel):
     # additional_items: Optional[str] = None
     signed_Am_path :Optional[str] = None
     signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type
+    bp_date: Optional[date] = None
+
 
 class AMOrderCreate(AMOrderBase):
     pass
