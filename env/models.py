@@ -141,6 +141,7 @@ class AmendmentOrder(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     amendment_no = Column(String(100), nullable=True)
+    created_by = Column(String(100), nullable=False)
     reference_no = Column(String(100), nullable=True)
     reference_type = Column(String(10), nullable=True)
     date = Column(Date, nullable=False)
@@ -194,7 +195,8 @@ class TotalOrder(Base):
     signed_po_uploaded_at = Column(DateTime, nullable=True)
     bp_date = Column(Date, nullable=True)
     preview_files = Column(String(255), nullable=True)
-
+    order_type = Column(String(10), nullable=True)
+    amendment_no = Column(String(255), nullable=True)
 class UploadedOrder(Base):
     __tablename__ = "uploaded_orders"
 

@@ -243,6 +243,7 @@ class AMOrderBase(BaseModel):
     content_text: str
     # existing: str
     read_as: str
+    created_by: str
     preview_file_path: Optional[str] = None
     # additional_items: Optional[str] = None
     signed_Am_path :Optional[str] = None
@@ -290,6 +291,8 @@ class TotalOrder(BaseModel):
     signed_po_uploaded_at: Optional[datetime]
     bp_date: Optional[date]
     preview_files: Optional[str]
+    order_type: Optional[str]
+    amendment_no: Optional[str]
  
     class Config:
         orm_mode = True
