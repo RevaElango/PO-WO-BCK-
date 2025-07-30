@@ -323,6 +323,65 @@ def create_am_order(
 def list_am_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_am_orders(db)
 
+
+
+@app.put("/amendment-orders/{am_id}", response_model=schemas.AMOrder)
+async def update_am_order(
+    am_id: int,
+    amendment_no: str = Form(...),
+    reference_no: str = Form(...),
+    reference_type: str = Form(...),
+    date: str = Form(...),
+    company_name: str = Form(...),
+    address: str = Form(...),
+    req_rec_date: str = Form(...),
+    subject: str = Form(...),
+    category_date: str = Form(...),
+    email: str = Form(...),
+    content_text: str = Form(...),
+    read_as: str = Form(...),
+    file: UploadFile = File(None),  # Optional PDF
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    am_order = db.query(AmendmentOrder).filter(AmendmentOrder.id == am_id).first()
+    if not am_order:
+        raise HTTPException(status_code=404, detail="Amendment Order not found")
+
+    # Update fields
+    am_order.amendment_no = amendment_no
+    am_order.reference_no = reference_no
+    am_order.reference_type = reference_type
+    am_order.date = date
+    am_order.company_name = company_name
+    am_order.address = address
+    am_order.req_rec_date = req_rec_date
+    am_order.subject = subject
+    am_order.category_date = category_date
+    am_order.email = email
+    am_order.content_text = content_text
+    am_order.read_as = read_as
+    am_order.updated_at = datetime.utcnow()
+
+    # ✅ If file provided, save and update preview_file_path
+    if file and file.content_type == "application/pdf":
+        safe_no = amendment_no.replace("/", "_")
+        filename = f"amendment_order_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        ao_dir = "uploads/generated_amendment_order_pdfs"
+        os.makedirs(ao_dir, exist_ok=True)
+        file_path = os.path.join(ao_dir, filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        preview_path = f"http://localhost:8000/{ao_dir}/{filename}"
+        am_order.preview_file_path = preview_path
+
+    db.commit()
+    db.refresh(am_order)
+    return am_order
+
+
 @app.get("/token/ping")
 def ping(current_user: User = Depends(get_current_user)):
     return {"message": "OK"}
@@ -853,8 +912,9 @@ async def update_work_order(
     db.commit()
     db.refresh(wo)
     return wo
+# ✅ Place this route FIRST
 @app.get("/amendment-orders/next-no")
-def get_next_amendment_no(db: Session = Depends(get_db)):
+def get_next_amendment_no(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     last_order = db.query(models.AmendmentOrder).order_by(models.AmendmentOrder.id.desc()).first()
     if last_order and last_order.amendment_no:
         prefix = "AO"
@@ -863,3 +923,11 @@ def get_next_amendment_no(db: Session = Depends(get_db)):
     else:
         next_number = "AO01"
     return {"next_amendment_no": next_number}
+
+
+@app.get("/amendment-orders/{am_id}", response_model=schemas.AMOrder)
+def get_amendment_order(am_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    am = db.query(AmendmentOrder).filter(AmendmentOrder.id == am_id).first()
+    if not am:
+        raise HTTPException(status_code=404, detail="Amendment Order not found")
+    return am

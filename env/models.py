@@ -142,6 +142,7 @@ class AmendmentOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     amendment_no = Column(String(100), nullable=True)
     reference_no = Column(String(100), nullable=True)
+    reference_type = Column(String(10), nullable=True)
     date = Column(Date, nullable=False)
     company_name = Column(Text, nullable=False)
     address = Column(Text, nullable=False)

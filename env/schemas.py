@@ -229,6 +229,7 @@ class WorkOrder(WorkOrderBase):
 class AMOrderBase(BaseModel):
     amendment_no: Optional[str] = None
     reference_no: str
+    reference_type: Optional[str]
     date: date
     company_name: str
     address: str
