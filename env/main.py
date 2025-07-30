@@ -15,8 +15,17 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import update
 import json
 import models
+from passlib.context import CryptContext
+import secrets,smtplib 
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+from models import User
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 # Secret key and algorithm
-SECRET_KEY = "your-secret-key"
+SECRET_KEY = "k3#4f%9*bsAY32%tio$9.015gBS"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -64,13 +73,35 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         return user_data
     except JWTError:
         raise HTTPException(status_code=401, detail="Token is invalid or expired")
+    
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 @app.post("/login", response_model=TokenResponse)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
-    if not db_user or db_user.password_hash != user.password:
+
+    if not db_user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
+    # Step 1: Detect if password is in plain text and needs hashing
+    if not db_user.password_hash.startswith("$2b$"):
+        # Compare plain passwords
+        if db_user.password_hash == user.password:
+            # Hash and update in DB
+            db_user.password_hash = hash_password(user.password)
+            db.commit()
+        else:
+            raise HTTPException(status_code=400, detail="Invalid email or password")
+    else:
+        # Step 2: Normal bcrypt password verification
+        if not verify_password(user.password, db_user.password_hash):
+            raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    # Step 3: Generate JWT token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
         data={
@@ -88,11 +119,89 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
         access_token=token,
         expires_in_minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
+@app.get("/get-email-from-token")
+def get_email_from_token(token: str):
+    email = reset_tokens.get(token)
+    if not email:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+    return {"email": email}
+
+
+@app.post("/change-password")
+def change_password(email: str = Form(...), new_password: str = Form(...), db: Session = Depends(get_db)):
+    user = crud.get_user_by_email(db, email=email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password_hash = hash_password(new_password)
+    db.commit()
+
+    return {"message": "Password changed successfully"}
+
+
+reset_tokens = {}
+
+# SMTP Configuration
+SMTP_SERVER = "smtp.office365.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "Automation@iitmpravartak.net"
+SENDER_PASSWORD = "Itjwh$1%842"  # 🔐 Replace with a secure method in production
+
+@app.post("/send-reset-link")
+async def send_reset_link(email: str = Form(...), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        return JSONResponse(status_code=404, content={"error": "User not found"})
+
+    # Generate a secure token
+    token = secrets.token_urlsafe(32)
+    reset_tokens[token] = email
+
+    # Construct reset URL
+    reset_url = f"http://localhost:4200/change-password?token={token}"
+    subject = "Password Reset Request"
+
+    # HTML content with button
+    html_body = f"""
+    <html>
+      <body>
+        <p>Dear {user.name if hasattr(user, 'name') else 'user'},</p>
+        <p>You have requested to reset your password. Please click the button below to proceed:</p>
+        <a href="{reset_url}" 
+           style="background-color: #007BFF; color: white; padding: 10px 20px; text-decoration: none; 
+                  border-radius: 5px; display: inline-block;">
+           Reset Password
+        </a>
+        <p>If you did not request this, you can ignore this email.</p>
+        <p>Best regards,<br>IT Team</p>
+      </body>
+    </html>
+    """
+
+    # Create email message
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = SENDER_EMAIL
+    msg["To"] = email
+
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            server.sendmail(SENDER_EMAIL, email, msg.as_string())
+
+        return {"message": "Reset link sent successfully"}
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
 def create_po(
     po_number: str = Form(...),
-    po_date: str = Form(...),
+    po_date: str = Form(...),   
     supplier_name: str = Form(...),
     supplier_address: str = Form(...),
     indent_date: str = Form(...),
