@@ -88,12 +88,14 @@ class PurchaseOrderItem(Base):
 
 class ProjectNoDetails(Base):
     __tablename__ = "project_no_details"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     project_keyword = Column(String, nullable=False)
-    project_no = Column(String, nullable=False)
-    pn_prefix = Column(String, nullable=False)   # updated from project_code
-    pn_suffix = Column(String, nullable=False)   # updated from pi_code
+    pn_prefix = Column(String, nullable=False)
+    pn_suffix = Column(String, nullable=False)
+
+
 
 
 
