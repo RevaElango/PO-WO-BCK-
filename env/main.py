@@ -21,6 +21,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from models import User
+BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -280,7 +282,7 @@ def create_po(
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
 
-        relative_url = f"http://localhost:8000/uploads/generated_po_files/{filename}"
+        relative_url = f"{BASE_URL}/uploads/generated_po_files/{filename}"
         db_po.preview_file_path = relative_url
         db.commit()
 
@@ -361,7 +363,7 @@ def create_work_order(
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
 
-        relative_url = f"http://localhost:8000/uploads/generated_work_order_pdfs/{filename}"
+        relative_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{filename}"
         db_work_order.preview_file_path = relative_url
         db.commit()
 
@@ -421,7 +423,7 @@ def create_am_order(
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
 
-        relative_url = f"http://localhost:8000/{ao_dir}/{filename}"
+        relative_url = f"{BASE_URL}/{ao_dir}/{filename}"
         db_am_order.preview_file_path = relative_url
         db.commit()
 
@@ -483,7 +485,7 @@ async def update_am_order(
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
 
-        preview_path = f"http://localhost:8000/{ao_dir}/{filename}"
+        preview_path = f"{BASE_URL}/{ao_dir}/{filename}"
         am_order.preview_file_path = preview_path
 
     db.commit()
@@ -558,7 +560,7 @@ def upload_total_order_docs(
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
 
-    relative_path = f"http://localhost:8000/uploads/total_orders_files/{filename}"
+    relative_path = f"{BASE_URL}/uploads/total_orders_files/{filename}"
 
     db.execute(
         update(TotalOrder)
@@ -586,7 +588,7 @@ def upload_signed_po(po_id: int, file: UploadFile = File(...), db: Session = Dep
     file_path = os.path.join(SIGNED_PO_UPLOAD_DIR, filename)
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
-    relative_path = f"http://localhost:8000/uploads/signed_pos/{filename}"
+    relative_path = f"{BASE_URL}/uploads/signed_pos/{filename}"
     db.execute(update(PurchaseOrder).where(PurchaseOrder.id == po_id).values(signed_po_path=relative_path, signed_po_uploaded_at=datetime.utcnow()))
     db.commit()
     return JSONResponse(content={"message": "Signed PO uploaded successfully", "signed_po_path": relative_path})
@@ -600,7 +602,7 @@ def upload_signed_wo(wo_id: int, file: UploadFile = File(...), db: Session = Dep
     file_path = os.path.join(SIGNED_WO_UPLOAD_DIR, filename)
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
-    relative_path = f"http://localhost:8000/uploads/signed_wos/{filename}"
+    relative_path = f"{BASE_URL}/uploads/signed_wos/{filename}"
     db.execute(update(WorkOrder).where(WorkOrder.id == wo_id).values(signed_wo_path=relative_path, signed_wo_uploaded_at=datetime.utcnow()))
     db.commit()
     return JSONResponse(content={"message": "Signed WO uploaded successfully", "signed_wo_path": relative_path})
@@ -631,7 +633,7 @@ def upload_signed_Am(
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
 
-    relative_path = f"http://localhost:8000/uploads/signed_Ams/{filename}"
+    relative_path = f"{BASE_URL}/uploads/signed_Ams/{filename}"
 
     # ✅ Update DB: signed_Am_path, signed_Am_uploaded_at, and bp_date
     db.execute(
@@ -774,7 +776,7 @@ def upload_order_file(
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
 
-    relative_url = f"http://localhost:8000/uploads/custom_uploads/{safe_order_number}/{filename}"
+    relative_url = f"{BASE_URL}/uploads/custom_uploads/{safe_order_number}/{filename}"
 
     uploaded = UploadedOrder(
         order_number=order_number,
@@ -895,7 +897,7 @@ async def update_po(
     with open(pdf_path, "wb") as f:
       f.write(await file.read())
 
-    base_url = "http://localhost:8000"
+    base_url = {BASE_URL}
     # 4. Update fields
     po.po_number = po_number
     po.po_date = po_date
@@ -990,7 +992,7 @@ async def update_work_order(
         f.write(await file.read())
 
     # Full preview URL (served via /uploads mount)
-    preview_url = f"http://localhost:8000/uploads/generated_work_order_pdfs/{pdf_filename}"
+    preview_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{pdf_filename}"
 
     # Update DB fields
     wo.work_order_no = work_order_no
