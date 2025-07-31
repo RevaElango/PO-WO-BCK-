@@ -301,3 +301,15 @@ class SupplierCreate(BaseModel):
     supplier_name: str
     supplier_address: str
 
+
+
+class ProjectNoCreate(BaseModel):
+    project_keyword: str
+    pn_prefix: str
+    pn_suffix: str
+
+class ProjectNoResponse(ProjectNoCreate):
+    id: int
+
+    class Config:
+        from_attributes = True  # Pydantic v2

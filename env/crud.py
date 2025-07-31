@@ -122,3 +122,14 @@ def get_latest_amendment_no(db: Session) -> str:
     else:
         next_num = 1
     return f"AO{next_num:02d}"
+def create_project_no(db: Session, data: schemas.ProjectNoCreate):
+    entry = models.ProjectNoDetails(
+        project_keyword=data.project_keyword,
+        pn_prefix=data.pn_prefix,
+        pn_suffix=data.pn_suffix
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry  # This will return only id, project_keyword, pn_prefix, pn_suffix
+

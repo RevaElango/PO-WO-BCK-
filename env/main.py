@@ -673,12 +673,12 @@ def get_project_keywords(db: Session = Depends(get_db), user: dict = Depends(get
         {
             "id": project.id,
             "project_keyword": project.project_keyword,
-            "project_no":project.project_no,
-            "pn_prefix": project.pn_prefix,   # updated
-            "pn_suffix": project.pn_suffix    # updated
+            "pn_prefix": project.pn_prefix,
+            "pn_suffix": project.pn_suffix
         }
         for project in projects
     ]
+
 
 @app.get("/amendment-source-options")
 def get_po_wo_numbers(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -1042,3 +1042,18 @@ def get_amendment_order(am_id: int, db: Session = Depends(get_db), user: dict = 
     if not am:
         raise HTTPException(status_code=404, detail="Amendment Order not found")
     return am
+
+
+@app.post("/project-no-details", response_model=schemas.ProjectNoResponse)
+def create_project_no_detail(
+    payload: schemas.ProjectNoCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # Only admins can create project number details
+    if user["role_id"] != 1:
+        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
+    return crud.create_project_no(db, payload)
+
+
