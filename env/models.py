@@ -92,6 +92,7 @@ class ProjectNoDetails(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_keyword = Column(String, nullable=False)
+    project_no = Column(String, nullable=False)
     pn_prefix = Column(String, nullable=False)
     pn_suffix = Column(String, nullable=False)
 
