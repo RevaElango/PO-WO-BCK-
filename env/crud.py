@@ -1,67 +1,107 @@
-from sqlalchemy.orm import Session,joinedload
-import schemas,models
+from sqlalchemy.orm import Session, joinedload
+import schemas, models
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+
+# -------------------------
+# Purchase Orders (PO)
+# -------------------------
 def create_po(db: Session, po: schemas.PurchaseOrderCreate):
-    # ✅ Step 1: Lookup project_no using project_keyword
-    project_detail = db.query(models.ProjectNoDetails).filter(
+    """
+    Create a PurchaseOrder and its items.
+    ProjectNoDetails does not have `project_no`; if you want a display value,
+    you can derive it from pn_prefix/pn_suffix. Otherwise set None.
+    """
+    project_no = None
+    proj = db.query(models.ProjectNoDetails).filter(
         models.ProjectNoDetails.project_keyword == po.project_keyword
     ).first()
-    project_no = project_detail.project_no if project_detail else None  # <- FIXED HERE
+    if proj:
+        # Example: derive a display value; adjust to your needs or keep None.
+        project_no = f"{proj.pn_prefix}/{proj.pn_suffix}"
 
-    # ✅ Step 2: Prepare PO data (excluding items)
+    # Exclude items for the parent row; attach them afterward
     po_data = po.dict(exclude={"items"})
-    po_data["project_no"] = project_no
+    po_data["project_no"] = project_no  # OK if the column exists; None is allowed if nullable
 
-    # ✅ Step 3: Create and save
     db_po = models.PurchaseOrder(**po_data)
-    db_po.items = [
-    models.PurchaseOrderItem(**(item.dict() if hasattr(item, 'dict') else item))
-    for item in po.items
-]
-
-
     db.add(db_po)
+    db.flush()  # get db_po.id
+
+    # Attach items via relationship (FK auto-populated)
+    db_po.items = [
+        models.PurchaseOrderItem(**(item.dict() if hasattr(item, "dict") else item))
+        for item in po.items
+    ]
+
     db.commit()
     db.refresh(db_po)
     return db_po
 
 
 def get_all_pos(db: Session):
-    return db.query(models.PurchaseOrder).options(joinedload(models.PurchaseOrder.items)).all()
+    return (
+        db.query(models.PurchaseOrder)
+        .options(joinedload(models.PurchaseOrder.items))
+        .all()
+    )
 
-# def get_po_by_id(db: Session, po_id: int):
-#     return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
 
+# -------------------------
+# Work Orders (WO)
+# -------------------------
 def create_work_order(db: Session, work_order: schemas.WorkOrderCreate):
-    # Fetch the project_no using the project_keyword
+    """
+    Create a WorkOrder and its items.
+    Do NOT read `project.project_no` (it doesn't exist in ProjectNoDetails).
+    """
     project_no = None
     if work_order.project_keyword:
-        project = db.query(models.ProjectNoDetails).filter(
+        proj = db.query(models.ProjectNoDetails).filter(
             models.ProjectNoDetails.project_keyword == work_order.project_keyword
         ).first()
-        if project:
-            project_no = project.project_no
+        if proj:
+            # Example: derive a display value; adjust as needed or keep None.
+            project_no = f"{proj.pn_prefix}/{proj.pn_suffix}"
 
-    # Convert to dict and add project_no
-    work_order_data = work_order.dict()
-    work_order_data["project_no"] = project_no  # Add it to the payload
-    work_order_data["created_by"] = work_order.created_by  # ✅ Add this
+    wo_data = work_order.dict(exclude={"items"})
+    wo_data["project_no"] = project_no
+    wo_data["created_by"] = work_order.created_by
 
-    db_work_order = models.WorkOrder(**work_order_data)
+    db_work_order = models.WorkOrder(**wo_data)
     db.add(db_work_order)
+    db.flush()  # get db_work_order.id
+
+    # Attach items via relationship (FK auto-populated)
+    db_work_order.items = [
+        models.WorkOrderItem(
+            item_description=it.item_description,
+            quantity=int(it.quantity),
+            unit_price=it.unit_price,
+            item_total=it.item_total,
+            gst=it.gst,
+        )
+        for it in work_order.items
+    ]
+
     db.commit()
     db.refresh(db_work_order)
     return db_work_order
 
 
-
 def get_all_work_orders(db: Session):
-    return db.query(models.WorkOrder).all()
+    return (
+        db.query(models.WorkOrder)
+        .options(joinedload(models.WorkOrder.items))
+        .all()
+    )
 
-# ✅ Fixed AM Order CRUD functions (correct model name used)
+
+# -------------------------
+# Amendment Orders (AM)
+# -------------------------
 def create_am_order(db: Session, am_order: schemas.AMOrderCreate):
     amendment_no = get_latest_amendment_no(db)
     am_data = am_order.dict(exclude={"amendment_no"})
@@ -75,13 +115,16 @@ def create_am_order(db: Session, am_order: schemas.AMOrderCreate):
     return db_am_order
 
 
-
+# -------------------------
+# Totals / Dashboard
+# -------------------------
 def get_all_total_orders(db: Session):
     return db.query(models.TotalOrder).all()
 
 
 def get_all_am_orders(db: Session):
-    return db.query(models.AmendmentOrder).all()  # ✅ use AmendmentOrder
+    return db.query(models.AmendmentOrder).all()
+
 
 def get_dashboard_counts(db: Session):
     po_count = db.query(models.PurchaseOrder).count()
@@ -94,6 +137,11 @@ def get_dashboard_counts(db: Session):
         "amendment_orders": am_count,
         "total_orders": total
     }
+
+
+# -------------------------
+# Helpers
+# -------------------------
 def mark_reference_amended(db: Session, reference_no: str):
     """
     Sets the amendment='Yes' for the referenced PO or WO.
@@ -105,6 +153,7 @@ def mark_reference_amended(db: Session, reference_no: str):
         wo_number = reference_no.replace("WO:", "").strip()
         db.query(models.WorkOrder).filter(models.WorkOrder.work_order_no == wo_number).update({"amendment": "Yes"})
     db.commit()
+
 
 def get_latest_amendment_no(db: Session) -> str:
     latest_order = (
@@ -122,6 +171,8 @@ def get_latest_amendment_no(db: Session) -> str:
     else:
         next_num = 1
     return f"AO{next_num:02d}"
+
+
 def create_project_no(db: Session, data: schemas.ProjectNoCreate):
     entry = models.ProjectNoDetails(
         project_keyword=data.project_keyword,
@@ -131,5 +182,4 @@ def create_project_no(db: Session, data: schemas.ProjectNoCreate):
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    return entry  # This will return only id, project_keyword, pn_prefix, pn_suffix
-
+    return entry

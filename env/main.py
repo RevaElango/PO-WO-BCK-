@@ -19,6 +19,8 @@ from passlib.context import CryptContext
 import secrets,smtplib 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from decimal import Decimal, ROUND_HALF_UP
+
 
 from models import User
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
@@ -288,84 +290,142 @@ def create_po(
 
     return db_po
 
-
-
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return crud.get_all_pos(db)
 
 @app.post("/work-orders/", response_model=schemas.WorkOrder)
 def create_work_order(
+    # Core identifiers
     work_order_no: str = Form(...),
     prefix: str = Form(...),
     suffix: str = Form(...),
+
+    # Dates (as strings; Pydantic will coerce)
     date: str = Form(...),
-    quotation_no: str = Form(None),
-    email: str = Form(None),
+    quotation_date: Optional[str] = Form(None),
+    indent_date: str = Form(...),
+
+    # Optional toggles
+    quotation_no: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+
+    # Parties/terms
     supplier_name: str = Form(...),
     address: str = Form(...),
-    quotation_date: str = Form(None),
-    indent_date: str = Form(...),
     requester_name: str = Form(...),
-    scope_of_work: str = Form(...),
-    value_of_service: float = Form(...),
-    tax: float = Form(...),
     duration_of_service: str = Form(...),
     payment_term: str = Form(...),
     deliverables: str = Form(...),
-    additional_terms: str = Form(None),
+    additional_terms: Optional[str] = Form(None),
+
+    # numbers
+    tax: float = Form(0),
+
+    # Annexure
     include_annexure: bool = Form(False),
-    annexure_text: str = Form(None),
-    annexure_file_path: str = Form(None),
-    project_keyword: str = Form(None),
-    file: UploadFile = File(None),
+    annexure_text: Optional[str] = Form(None),
+    annexure_file_path: Optional[str] = Form(None),
+
+    # Project ref
+    project_keyword: Optional[str] = Form(None),
+
+    # Totals (from UI)
+    total_cost: float = Form(...),
+    total_including_gst: float = Form(...),
+
+    # Items as JSON string
+    items: str = Form(...),
+
+    # ✅ PDF is REQUIRED so preview_file_path is always set
+    file: UploadFile = File(...),
+
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
 ):
-    # Create WorkOrderCreate schema instance
-    work_order = schemas.WorkOrderCreate(
-        work_order_no=work_order_no,
-        prefix=prefix,
-        suffix=suffix,
-        date=date,
-        quotation_no=quotation_no,
-        email=email,
-        supplier_name=supplier_name,
-        address=address,
-        quotation_date=quotation_date,
-        indent_date=indent_date,
-        requester_name=requester_name,
-        scope_of_work=scope_of_work,
-        value_of_service=value_of_service,
-        tax=tax,
-        duration_of_service=duration_of_service,
-        payment_term=payment_term,
-        deliverables=deliverables,
-        additional_terms=additional_terms,
-        include_annexure=include_annexure,
-        annexure_text=annexure_text,
-        annexure_file_path=annexure_file_path,
-        project_keyword=project_keyword,
-        created_by=user['username']
+    # --- Validate & parse items ---
+    if not items or not items.strip():
+        raise HTTPException(status_code=400, detail="Items field is missing or empty.")
+
+    try:
+        ilist = json.loads(items)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format for items.")
+
+    if not isinstance(ilist, list) or not all(isinstance(x, dict) for x in ilist):
+        raise HTTPException(status_code=400, detail="Items should be a JSON array of objects.")
+
+    # --- Compute scope_of_work and value_of_service from items ---
+    scope_of_work = ", ".join(
+        s for s in (str(i.get("item_description", "")).strip() for i in ilist) if s
     )
 
-    # Store in DB
-    db_work_order = crud.create_work_order(db=db, work_order=work_order)
+    value_of_service = sum(
+        Decimal(str(i.get("quantity") or 0)) * Decimal(str(i.get("unit_price") or 0))
+        for i in ilist
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    # ✅ Save uploaded PDF
-    if file and file.content_type == "application/pdf":
-        safe_no = work_order_no.replace("/", "_")
-        filename = f"generated_wo_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-        wo_dir = "uploads/generated_work_order_pdfs"
-        os.makedirs(wo_dir, exist_ok=True)
-        file_path = os.path.join(wo_dir, filename)
+    tax_dec = Decimal(str(tax or 0)).quantize(Decimal("0.00"))
+    total_cost_dec = Decimal(str(total_cost)).quantize(Decimal("0.01"))
+    total_incl_gst_dec = Decimal(str(total_including_gst)).quantize(Decimal("0.01"))
 
-        with open(file_path, "wb") as buffer:
-            buffer.write(file.file.read())
+    # --- Build schema (Pydantic will coerce/validate dates & decimals) ---
+    wo = schemas.WorkOrderCreate(
+        work_order_no=work_order_no,
+        date=date,
+        quotation_no=quotation_no or None,
+        email=email or None,
+        quotation_date=quotation_date or None,
+        requester_name=requester_name,
+        indent_date=indent_date,
 
-        relative_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{filename}"
-        db_work_order.preview_file_path = relative_url
-        db.commit()
+        # computed server-side
+        scope_of_work=scope_of_work,
+        value_of_service=value_of_service,
+
+        duration_of_service=duration_of_service,
+        tax=tax_dec,
+        payment_term=payment_term,
+        supplier_name=supplier_name,
+        address=address,
+        deliverables=deliverables,
+        additional_terms=additional_terms or None,
+
+        include_annexure=include_annexure,
+        annexure_text=annexure_text or None,
+        annexure_file_path=annexure_file_path or None,
+        project_keyword=project_keyword or None,
+
+        total_cost=total_cost_dec,
+        total_including_gst=total_incl_gst_dec,
+
+        items=ilist,
+        created_by=user["username"],
+    )
+
+    # --- Persist (your CRUD handles project_no lookup and items creation) ---
+    db_work_order = crud.create_work_order(db=db, work_order=wo)
+
+    # --- Save the PDF and set preview_file_path (always required) ---
+    if file.content_type not in ("application/pdf", "application/octet-stream"):
+        raise HTTPException(status_code=400, detail="A PDF (application/pdf) is required for 'file'.")
+
+    safe_no = work_order_no.replace("/", "_")
+    filename = f"generated_wo_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    wo_dir = os.path.join("uploads", "generated_work_order_pdfs")
+    os.makedirs(wo_dir, exist_ok=True)
+    disk_path = os.path.join(wo_dir, filename)
+
+    with open(disk_path, "wb") as buffer:
+        buffer.write(file.file.read())
+
+    relative_url = f"/uploads/generated_work_order_pdfs/{filename}"
+    full_url = f"{BASE_URL}{relative_url}" if BASE_URL else relative_url
+
+    db_work_order.preview_file_path = full_url
+    db.add(db_work_order)
+    db.commit()
+    db.refresh(db_work_order)
 
     return db_work_order
 

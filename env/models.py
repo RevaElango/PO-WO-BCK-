@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean, ForeignKey, Text, DECIMAL
+from sqlalchemy import Column, Integer, String, Date, Float, DateTime, Boolean, ForeignKey, Text, DECIMAL, Numeric
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -95,12 +95,8 @@ class ProjectNoDetails(Base):
     pn_prefix = Column(String, nullable=False)
     pn_suffix = Column(String, nullable=False)
 
-
-
-
-
 class WorkOrder(Base):
-    __tablename__ = "work_order"
+    __tablename__ = "work_order"  # make sure this matches your actual table name
 
     id = Column(Integer, primary_key=True, index=True)
     work_order_no = Column(String(100), nullable=False)
@@ -110,34 +106,66 @@ class WorkOrder(Base):
     created_by = Column(String(100), nullable=True)
     quotation_date = Column(Date, nullable=False)
     requester_name = Column(String(100))
-    indent_date = Column(Date, nullable=True)  # ✅ Add this
+    indent_date = Column(Date, nullable=True)
     scope_of_work = Column(String, nullable=False)
     value_of_service = Column(Integer, nullable=False)
     tax = Column(Integer, nullable=False)
     duration_of_service = Column(String, nullable=False)
     payment_term = Column(String, nullable=False)
-    deliverables = Column(String, nullable=True)        # Optional
-    additional_terms = Column(String, nullable=True)     # Optional
-    amendment = Column(String(10), default="No")  # or Boolean if preferred
+    deliverables = Column(String, nullable=True)
+    additional_terms = Column(String, nullable=True)
+    amendment = Column(String(10), default="No")
+    total_cost = Column(Numeric(12, 2), nullable=False, default=0)
+    total_including_gst = Column(Numeric(12, 2), nullable=False, default=0)
 
-
-    # New fields for Annexure
+    # Supplier details
     supplier_name = Column(String(255))
     address = Column(Text)
+
+    # Annexure
     include_annexure = Column(Boolean, default=False)
     annexure_text = Column(String, nullable=True)
     annexure_file_path = Column(String, nullable=True)
+
+    # Signed WO details
     signed_wo_path = Column(String(255), nullable=True)
     signed_wo_uploaded_at = Column(DateTime, nullable=True)
-     
-    project_keyword = Column(String(255), nullable=True)  # ✅ New column
-    project_no = Column(String(100), nullable=True)  # ✅ New column to store project number
 
+    # Project info
+    project_keyword = Column(String(255), nullable=True)
+    project_no = Column(String(100), nullable=True)
+
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     preview_file_path = Column(String(255), nullable=True)
 
+    # ✅ FIX: relationship name must match child-side back_populates
+    items = relationship(
+        "WorkOrderItem",
+        back_populates="work_order",
+        cascade="all, delete-orphan",
+    )
 
+
+class WorkOrderItem(Base):
+    __tablename__ = "work_order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # ✅ Column matches your DB screenshot
+    work_order_id = Column(Integer, ForeignKey("work_order.id"), nullable=False, index=True)
+
+    item_description = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=False)
+
+    # ✅ Use DECIMAL/NUMERIC for currency/percent
+    unit_price = Column(Numeric(12, 2), nullable=False)
+    item_total = Column(Numeric(12, 2), nullable=False)
+    gst = Column(Numeric(5, 2), nullable=False)
+
+    # ✅ FIX: name matches parent-side back_populates
+    work_order = relationship("WorkOrder", back_populates="items")
 class AmendmentOrder(Base):
     __tablename__ = "amendment_orders"
 
