@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator,ConfigDict,condecimal,Field
+from decimal import Decimal
 from datetime import date, datetime
 from typing import List, Optional
 import re
@@ -59,6 +60,7 @@ class PurchaseOrderCreate(BaseModel):
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
     project_keyword: Optional[str] = None
+
     budget_head: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
@@ -152,25 +154,45 @@ class PurchaseOrder(BaseModel):
 
     class Config:
         orm_mode = True
-
-
-
-
 # ---------------------------
-# Work Order Schemas
+# Work Order Item Schemas
 # ---------------------------
 
+class WorkOrderItemBase(BaseModel):
+    item_description: str
+    quantity: int
+    # Prefer Decimal for currency; 2 decimal places
+    unit_price: condecimal(max_digits=12, decimal_places=2)
+    item_total: condecimal(max_digits=12, decimal_places=2)
+    gst: condecimal(max_digits=5, decimal_places=2)  # e.g., 18.00
+
+class WorkOrderItemCreate(WorkOrderItemBase):
+    pass
+
+class WorkOrderItem(WorkOrderItemBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)  # Pydantic v2 equivalent of orm_mode
+
+# ---- Work Order ----
 class WorkOrderBase(BaseModel):
     work_order_no: str
     date: date
     quotation_no: Optional[str]
     email: Optional[EmailStr]
-    quotation_date: Optional[date] = None  # ✅ Now it's optional
+    quotation_date: Optional[date] = None
     requester_name: str
     indent_date: date
-    scope_of_work: str
-    value_of_service: int
-    tax: int
+
+    # If you've removed these in the UI/DB, you can delete these lines.
+    # Keeping them optional avoids 422s if not sent.
+    scope_of_work: Optional[str] = None
+    value_of_service: Optional[condecimal(max_digits=14, decimal_places=2)] = Field(default=Decimal("0"))
+
+    # Totals/tax
+    tax: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
+    total_cost: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
+    total_including_gst: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
+
     duration_of_service: str
     payment_term: str
     supplier_name: str
@@ -185,47 +207,38 @@ class WorkOrderBase(BaseModel):
     project_keyword: Optional[str] = None  # ✅ New field
     budget_head: Optional[str] = None
     preview_file_path: Optional[str] = None
- 
-    @field_validator("date", check_fields=False)
+    items: List[WorkOrderItemCreate]
+
+    @field_validator("date")
     @classmethod
     def validate_work_order_date(cls, v: date):
         if v > date.today():
             raise ValueError("Work order date cannot be a future date")
         return v
 
-    @field_validator('quotation_date')
-    def validate_quotation_date(cls, v):
+    @field_validator("quotation_date")
+    @classmethod
+    def validate_quotation_date(cls, v: Optional[date]):
         if v is not None and v > date.today():
             raise ValueError("Quotation date cannot be in the future.")
         return v
 
-    @field_validator("value_of_service", "tax", check_fields=False)
-    @classmethod
-    def validate_positive_numbers(cls, v: int, info):
-        if v < 0:
-            raise ValueError(f"{info.field_name.replace('_', ' ').capitalize()} must be a non-negative number")
-        return v
-
-    @field_validator("email", mode="before", check_fields=False)
+    @field_validator("email", mode="before")
     @classmethod
     def empty_string_to_none(cls, v):
         return v or None
 
 class WorkOrderCreate(WorkOrderBase):
-    created_by: str  # ✅ Add this line
-    pass
+    created_by: str
 
 class WorkOrder(WorkOrderBase):
     id: int
     created_at: datetime
     updated_at: datetime
     created_by: Optional[str]
- 
-    class Config:
-        orm_mode = True
+    items: List[WorkOrderItem]
+    model_config = ConfigDict(from_attributes=True)  # Pydantic v2
 
-
-# ---------------------------
 # AM Order (Amendment Order) Schemas
 # ---------------------------
 
