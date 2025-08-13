@@ -179,17 +179,9 @@ class WorkOrderBase(BaseModel):
     quotation_date: Optional[date] = None
     requester_name: str
     indent_date: date
-
-    # If you've removed these in the UI/DB, you can delete these lines.
-    # Keeping them optional avoids 422s if not sent.
-    scope_of_work: Optional[str] = None
-    value_of_service: Optional[condecimal(max_digits=14, decimal_places=2)] = Field(default=Decimal("0"))
-
-    # Totals/tax
     tax: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
     total_cost: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
     total_including_gst: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
-
     duration_of_service: str
     payment_term: str
     supplier_name: str
@@ -247,17 +239,12 @@ class AMOrderBase(BaseModel):
     address: str
     req_rec_date: date
     subject: str
-    # category: str
-    # category_no: str
     category_date: date
-    email: Optional[date] = None  # <-- Change only if really needed (should usually be EmailStr)
-    # letter: Optional[date] = None
+    email: Optional[date] = None  
     content_text: str
-    # existing: str
     read_as: str
     created_by: str
     preview_file_path: Optional[str] = None
-    # additional_items: Optional[str] = None
     signed_Am_path :Optional[str] = None
     signed_Am_uploaded_at: Optional[datetime] = None # ✅ Correct type
     bp_date: Optional[date] = None

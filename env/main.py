@@ -355,16 +355,6 @@ def create_work_order(
     if not isinstance(ilist, list) or not all(isinstance(x, dict) for x in ilist):
         raise HTTPException(status_code=400, detail="Items should be a JSON array of objects.")
 
-    # --- Compute scope_of_work and value_of_service from items ---
-    scope_of_work = ", ".join(
-        s for s in (str(i.get("item_description", "")).strip() for i in ilist) if s
-    )
-
-    value_of_service = sum(
-        Decimal(str(i.get("quantity") or 0)) * Decimal(str(i.get("unit_price") or 0))
-        for i in ilist
-    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
     tax_dec = Decimal(str(tax or 0)).quantize(Decimal("0.00"))
     total_cost_dec = Decimal(str(total_cost)).quantize(Decimal("0.01"))
     total_incl_gst_dec = Decimal(str(total_including_gst)).quantize(Decimal("0.01"))
@@ -378,10 +368,6 @@ def create_work_order(
         quotation_date=quotation_date or None,
         requester_name=requester_name,
         indent_date=indent_date,
-
-        # computed server-side
-        scope_of_work=scope_of_work,
-        value_of_service=value_of_service,
 
         duration_of_service=duration_of_service,
         tax=tax_dec,
@@ -1022,8 +1008,6 @@ async def update_work_order(
     address: str = Form(...),
     indent_date: str = Form(...),
     requester_name: str = Form(...),
-    scope_of_work: str = Form(...),
-    value_of_service: int = Form(...),
     tax: int = Form(...),
     duration_of_service: str = Form(...),
     payment_term: str = Form(...),
@@ -1067,8 +1051,6 @@ async def update_work_order(
     wo.address = address
     wo.indent_date = indent_date
     wo.requester_name = requester_name
-    wo.scope_of_work = scope_of_work
-    wo.value_of_service = value_of_service
     wo.tax = tax
     wo.duration_of_service = duration_of_service
     wo.payment_term = payment_term
