@@ -226,6 +226,7 @@ def create_po(
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
     project_keyword: str = Form(None),
+    budget_head: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
     final_suffix : str = Form(None),
@@ -261,6 +262,7 @@ def create_po(
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
         project_keyword=project_keyword,
+        budget_head=budget_head,
         prefix=prefix,
         suffix=suffix,
         final_suffix=final_suffix,
@@ -326,10 +328,10 @@ def create_work_order(
     include_annexure: bool = Form(False),
     annexure_text: Optional[str] = Form(None),
     annexure_file_path: Optional[str] = Form(None),
-
+    budget_head: str = Form(None),
     # Project ref
     project_keyword: Optional[str] = Form(None),
-
+    
     # Totals (from UI)
     total_cost: float = Form(...),
     total_including_gst: float = Form(...),
@@ -384,6 +386,7 @@ def create_work_order(
 
         total_cost=total_cost_dec,
         total_including_gst=total_incl_gst_dec,
+        budget_head=budget_head,
 
         items=ilist,
         created_by=user["username"],
