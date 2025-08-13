@@ -53,6 +53,7 @@ class PurchaseOrder(Base):
     is_asset = Column(Boolean, default=False)  # ✅ New field for Yes/No
     asset_type = Column(String(100), nullable=True)  # ✅ Show only if is_asset is True
     project_keyword = Column(String, nullable=True)
+    budget_head = Column(String(255), nullable=True)
     prefix = Column(String, nullable=True)
     suffix = Column(String, nullable=True)
     final_suffix = Column(String ,nullable=True)  # ✅ Add this
@@ -132,6 +133,7 @@ class WorkOrder(Base):
     signed_wo_uploaded_at = Column(DateTime, nullable=True)
      
     project_keyword = Column(String(255), nullable=True)  # ✅ New column
+    budget_head = Column(String(255), nullable=True)
     project_no = Column(String(100), nullable=True)  # ✅ New column to store project number
 
     created_at = Column(DateTime, default=datetime.utcnow)

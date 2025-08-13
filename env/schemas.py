@@ -59,6 +59,7 @@ class PurchaseOrderCreate(BaseModel):
     is_asset: Optional[bool] = False
     asset_type: Optional[str] = None
     project_keyword: Optional[str] = None
+    budget_head: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
     final_suffix: str  # ✅ Add this
@@ -181,6 +182,7 @@ class WorkOrderBase(BaseModel):
     signed_wo_path :Optional[str] = None
     signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
     project_keyword: Optional[str] = None  # ✅ New field
+    budget_head: Optional[str] = None
     preview_file_path: Optional[str] = None
  
     @field_validator("date", check_fields=False)

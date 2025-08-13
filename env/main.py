@@ -224,6 +224,7 @@ def create_po(
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
     project_keyword: str = Form(None),
+    budget_head: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
     final_suffix : str = Form(None),
@@ -259,6 +260,7 @@ def create_po(
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
         project_keyword=project_keyword,
+        budget_head=budget_head,
         prefix=prefix,
         suffix=suffix,
         final_suffix=final_suffix,
@@ -318,6 +320,7 @@ def create_work_order(
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
     project_keyword: str = Form(None),
+    budget_head: str = Form(None),
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
@@ -346,6 +349,7 @@ def create_work_order(
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
         project_keyword=project_keyword,
+        budget_head=budget_head,
         created_by=user['username']
     )
 
