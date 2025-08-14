@@ -147,6 +147,7 @@ class PurchaseOrder(BaseModel):
     preview_file_path: Optional[str]
     created_at: datetime
     updated_at: datetime
+    budget_head: Optional[str] 
     items: List[PurchaseOrderItem]
 
     class Config:
@@ -288,7 +289,7 @@ class TotalOrder(BaseModel):
     Order_No: Optional[str]
     requestor_name: Optional[str]
     Payment_Term: Optional[str]
-
+    budget_head: Optional[str]
     signed_po_path: Optional[str]
     signed_po_uploaded_at: Optional[datetime]
     bp_date: Optional[date]
