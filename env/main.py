@@ -1033,6 +1033,7 @@ async def update_work_order(
     annexure_text: Optional[str] = Form(None),
     annexure_file_path: Optional[str] = Form(None),
     project_keyword: Optional[str] = Form(None),
+    budget_head: Optional[str] = Form(None),
  
     # NEW: totals (optional)
     total_cost: Optional[float] = Form(None),
@@ -1086,6 +1087,7 @@ async def update_work_order(
     wo.annexure_text = annexure_text
     wo.annexure_file_path = annexure_file_path
     wo.project_keyword = project_keyword
+    wo.budget_head = budget_head 
     wo.preview_file_path = preview_url
     wo.updated_at = datetime.now()
  
