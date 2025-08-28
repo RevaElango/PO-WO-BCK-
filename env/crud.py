@@ -175,6 +175,7 @@ def get_latest_amendment_no(db: Session) -> str:
 
 def create_project_no(db: Session, data: schemas.ProjectNoCreate):
     entry = models.ProjectNoDetails(
+        project_no=data.project_no,
         project_keyword=data.project_keyword,
         pn_prefix=data.pn_prefix,
         pn_suffix=data.pn_suffix
