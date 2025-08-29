@@ -123,6 +123,7 @@ class PurchaseOrder(BaseModel):
     prefix: Optional[str]  # ✅ Add this
     suffix: Optional[str]  # ✅ Add this
     project_keyword: Optional[str]  # ✅ Add this
+    project_no: Optional[str] 
     requester_name: Optional[str]  # ✅ Add this
     indent_date: Optional[date]
     po_date: Optional[date]
@@ -205,6 +206,7 @@ class WorkOrderBase(BaseModel):
     signed_wo_path :Optional[str] = None
     signed_wo_uploaded_at: Optional[datetime] = None # ✅ Correct type
     project_keyword: Optional[str] = None  # ✅ New field
+    project_no: Optional[str] = None
     budget_head: Optional[str] = None
     preview_file_path: Optional[str] = None
     items: List[WorkOrderItemCreate]

@@ -887,7 +887,11 @@ def add_supplier(
     return {"message": "Supplier added successfully"}  # ✅ Now no validation error
 
 @app.get("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
-def get_purchase_order(po_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+def get_purchase_order(
+    po_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
     # Fetch PO with related items
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
@@ -897,13 +901,22 @@ def get_purchase_order(po_id: int, db: Session = Depends(get_db), user: dict = D
     items = db.query(PurchaseOrderItem).filter(PurchaseOrderItem.po_id == po.id).all()
     po.items = items  # ✅ attach items so it's serialized in response
 
-    # Optional: print or log what’s going out for debug
+    # ✅ Fetch project_no from project_no_details
+    project_detail = (
+        db.query(ProjectNoDetails)
+        .filter(ProjectNoDetails.project_keyword == po.project_keyword)
+        .first()
+    )
+    po.project_no = project_detail.project_no if project_detail else None
+
+    # Debug logging (optional)
     print("Returning PO:", {
         "id": po.id,
         "po_number": po.po_number,
         "prefix": po.prefix,
         "suffix": po.suffix,
         "project_keyword": po.project_keyword,
+        "project_no": po.project_no,
         "requester_name": po.requester_name,
         "items_count": len(po.items)
     })
@@ -935,6 +948,7 @@ async def update_po(
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
     project_keyword: str = Form(None),
+    project_no: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
     items: str = Form(...),
@@ -984,6 +998,7 @@ async def update_po(
     po.annexure_text = annexure_text
     po.annexure_file_path = annexure_file_path
     po.project_keyword = project_keyword
+    po.project_no = project_no
     po.prefix = prefix
     po.suffix = suffix
     po.preview_file_path = f"{base_url}/uploads/generated_po_files/{pdf_filename}"
@@ -1005,11 +1020,35 @@ async def update_po(
     db.refresh(po)
     return po
 @app.get("/work-orders/{wo_id}", response_model=schemas.WorkOrder)
-def get_work_order(wo_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+def get_work_order(
+    wo_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # Fetch work order
     wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work Order not found")
+
+    # ✅ Fetch project_no from project_no_details
+    project_detail = (
+        db.query(ProjectNoDetails)
+        .filter(ProjectNoDetails.project_keyword == wo.project_keyword)
+        .first()
+    )
+    wo.project_no = project_detail.project_no if project_detail else None
+
+    # Debug logging (optional)
+    print("Returning WO:", {
+        "id": wo.id,
+        "work_order_no": wo.work_order_no,
+        "project_keyword": wo.project_keyword,
+        "project_no": wo.project_no,
+        "requester_name": wo.requester_name,
+    })
+
     return wo
+
 @app.put("/work-orders/{wo_id}", response_model=schemas.WorkOrder)
 async def update_work_order(
     wo_id: int,
