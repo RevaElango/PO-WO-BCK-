@@ -947,8 +947,8 @@ async def update_po(
     include_annexure: bool = Form(False),
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
-    project_keyword: str = Form(None),
-    project_no: str = Form(None),
+    project_keyword: str = Form(None),   # may come as ID from UI
+    project_no: str = Form(None),        # may come null
     prefix: str = Form(None),
     suffix: str = Form(None),
     items: str = Form(...),
@@ -972,9 +972,10 @@ async def update_po(
     pdf_path = os.path.join(pdf_dir, pdf_filename)
 
     with open(pdf_path, "wb") as f:
-      f.write(await file.read())
+        f.write(await file.read())
 
     base_url = BASE_URL
+
     # 4. Update fields
     po.po_number = po_number
     po.po_date = po_date
@@ -997,8 +998,25 @@ async def update_po(
     po.include_annexure = include_annexure
     po.annexure_text = annexure_text
     po.annexure_file_path = annexure_file_path
-    po.project_keyword = project_keyword
-    po.project_no = project_no
+
+    # ✅ Resolve project_keyword if UI sent ID
+    if project_keyword and project_keyword.isdigit():
+        project_detail = (
+            db.query(ProjectNoDetails)
+            .filter(ProjectNoDetails.id == int(project_keyword))
+            .first()
+        )
+        if project_detail:
+            po.project_keyword = project_detail.project_keyword
+            po.project_no = project_detail.project_no
+        else:
+            po.project_keyword = None
+            po.project_no = None
+    else:
+        # If frontend sent actual keyword string, use it directly
+        po.project_keyword = project_keyword
+        po.project_no = project_no
+
     po.prefix = prefix
     po.suffix = suffix
     po.preview_file_path = f"{base_url}/uploads/generated_po_files/{pdf_filename}"
@@ -1019,6 +1037,7 @@ async def update_po(
     db.commit()
     db.refresh(po)
     return po
+
 @app.get("/work-orders/{wo_id}", response_model=schemas.WorkOrder)
 def get_work_order(
     wo_id: int,
@@ -1071,16 +1090,16 @@ async def update_work_order(
     include_annexure: bool = Form(False),
     annexure_text: Optional[str] = Form(None),
     annexure_file_path: Optional[str] = Form(None),
-    project_keyword: Optional[str] = Form(None),
+    project_keyword: Optional[str] = Form(None),   # may come as ID from UI
     budget_head: Optional[str] = Form(None),
- 
+
     # NEW: totals (optional)
     total_cost: Optional[float] = Form(None),
     total_including_gst: Optional[float] = Form(None),
- 
+
     # NEW: items payload (JSON string)
     items: Optional[str] = Form(None),
- 
+
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
@@ -1088,7 +1107,7 @@ async def update_work_order(
     wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work Order not found")
- 
+
     # --- Save new PDF ---
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     safe_wo_number = work_order_no.replace("/", "_")
@@ -1096,15 +1115,15 @@ async def update_work_order(
     pdf_dir = "uploads/generated_work_order_pdfs"
     os.makedirs(pdf_dir, exist_ok=True)
     pdf_path = os.path.join(pdf_dir, pdf_filename)
- 
+
     try:
         with open(pdf_path, "wb") as f:
             f.write(await file.read())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write PDF: {e}")
- 
+
     preview_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{pdf_filename}"
- 
+
     # --- Update WO header fields ---
     wo.work_order_no = work_order_no
     wo.prefix = prefix
@@ -1125,11 +1144,28 @@ async def update_work_order(
     wo.include_annexure = include_annexure
     wo.annexure_text = annexure_text
     wo.annexure_file_path = annexure_file_path
-    wo.project_keyword = project_keyword
     wo.budget_head = budget_head 
     wo.preview_file_path = preview_url
     wo.updated_at = datetime.now()
- 
+
+    # ✅ Resolve project_keyword if UI sent ID
+    if project_keyword and project_keyword.isdigit():
+        project_detail = (
+            db.query(ProjectNoDetails)
+            .filter(ProjectNoDetails.id == int(project_keyword))
+            .first()
+        )
+        if project_detail:
+            wo.project_keyword = project_detail.project_keyword
+            wo.project_no = project_detail.project_no
+        else:
+            wo.project_keyword = None
+            wo.project_no = None
+    else:
+        wo.project_keyword = project_keyword
+        # don’t override project_no unless explicitly passed
+        # (so it keeps old value if frontend doesn’t send it)
+
     # --- Replace items if provided ---
     parsed_items: Optional[List[dict]] = None
     if items is not None:
@@ -1138,42 +1174,34 @@ async def update_work_order(
             if not isinstance(parsed_items, list):
                 raise ValueError("items must be a JSON array")
         except Exception as e:
-            # If parsing fails, abort before touching DB
             raise HTTPException(status_code=422, detail=f"Invalid items JSON: {e}")
- 
-        # Remove existing items for this WO
+
         db.query(WorkOrderItem).filter(WorkOrderItem.wo_id == wo_id).delete(synchronize_session=False)
 
- 
-        # Insert new items
         new_rows = []
         for it in parsed_items:
-            # safe extraction with defaults
             desc = (it.get("item_description") or "").strip()
             qty = float(it.get("quantity") or 0)
             unit = float(it.get("unit_price") or 0)
             gst = float(it.get("gst") or 0)
             total = float(it.get("item_total") or (qty * unit * (1 + gst/100.0)))
- 
-            new_rows.append(
-            WorkOrderItem(
-                wo_id=wo_id,                       # <-- use wo_id
-                item_description=desc,
-                quantity=qty,
-                unit_price=unit,
-                gst=gst,
-                item_total=total,
-            )
-        )
 
-            
+            new_rows.append(
+                WorkOrderItem(
+                    wo_id=wo_id,
+                    item_description=desc,
+                    quantity=qty,
+                    unit_price=unit,
+                    gst=gst,
+                    item_total=total,
+                )
+            )
+
         if new_rows:
             db.bulk_save_objects(new_rows)
- 
-        # If totals weren’t provided, compute them from items
+
         if total_cost is None or total_including_gst is None:
-            excl = 0.0
-            incl = 0.0
+            excl, incl = 0.0, 0.0
             for it in parsed_items:
                 qty = float(it.get("quantity") or 0)
                 unit = float(it.get("unit_price") or 0)
@@ -1185,28 +1213,27 @@ async def update_work_order(
                 total_cost = round(excl, 2)
             if total_including_gst is None:
                 total_including_gst = round(incl, 2)
- 
-    # --- Persist totals (use provided or computed) ---
+
+    # --- Persist totals ---
     if total_cost is not None:
         wo.total_cost = float(total_cost)
     if total_including_gst is not None:
         wo.total_including_gst = float(total_including_gst)
- 
-    # --- Commit ---
+
     try:
         db.commit()
         db.refresh(wo)
     except Exception as e:
         db.rollback()
-        # Clean the just-written PDF file if you want to keep storage tidy on failure
         try:
             if os.path.exists(pdf_path):
                 os.remove(pdf_path)
         except:
             pass
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
- 
+
     return wo
+
 # ✅ Place this route FIRST
 @app.get("/amendment-orders/next-no")
 def get_next_amendment_no(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
