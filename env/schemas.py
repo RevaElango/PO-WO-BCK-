@@ -322,6 +322,7 @@ class SupplierCreate(BaseModel):
 
 
 class ProjectNoCreate(BaseModel):
+    project_no: str
     project_keyword: str
     pn_prefix: str
     pn_suffix: str
