@@ -214,8 +214,8 @@ def create_po(
     quotation_date: str = Form(None),
     email: str = Form(None),
     dated: str = Form(None),
-    total_cost: int = Form(...),
-    total_including_gst: float = Form(...),
+    total_cost: Decimal = Form(...),
+    total_including_gst: Decimal = Form(...),
     delivery_date: str = Form(...),
     payment_terms: str = Form(...),
     additional_terms: str = Form(None),
@@ -236,7 +236,7 @@ def create_po(
     user: dict = Depends(get_current_user)
 ):
     import json
-    items_list = json.loads(items)  # Convert items JSON string to Python list
+    items_list = json.loads(items, parse_float=Decimal)  # Convert items JSON string to Python list
 
     # ✅ Now use the values to build a POCreate schema manually
     po_data = schemas.PurchaseOrderCreate(
@@ -269,7 +269,6 @@ def create_po(
         items=items_list,
         created_by=user['username']
     )
-
     db_po = crud.create_po(db=db, po=po_data)
 
     # ✅ Save file (optional)

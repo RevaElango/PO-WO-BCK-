@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, field_validator,ConfigDict,condecimal,Field
 from decimal import Decimal
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 import re
 
 # ---------------------------
@@ -24,9 +24,9 @@ class TokenResponse(BaseModel):
 class PurchaseOrderItemBase(BaseModel):
     item_description: str
     quantity: int
-    unit_price: int
-    item_total: int
-    gst: float
+    unit_price: condecimal(max_digits=18, decimal_places=3)  # ✅ correct
+    item_total: condecimal(max_digits=18, decimal_places=2)
+    gst: condecimal(max_digits=5, decimal_places=2)
 
 class PurchaseOrderItemCreate(PurchaseOrderItemBase):
     pass
@@ -49,8 +49,8 @@ class PurchaseOrderCreate(BaseModel):
     email: Optional[str] = None
     created_by: str
     dated: Optional[date] = None
-    total_cost: int
-    total_including_gst: float
+    total_cost: condecimal(max_digits=12, decimal_places=2)
+    total_including_gst: condecimal(max_digits=12, decimal_places=2)
     delivery_date: date
     payment_terms: str
     additional_terms: Optional[str] = None
@@ -109,8 +109,8 @@ class PurchaseOrderItem(BaseModel):
     id: int
     item_description: str
     quantity: int
-    unit_price: int
-    item_total: int
+    unit_price: Decimal
+    item_total: Decimal
     gst: float  # ✅ Added GST field here as well
 
     class Config:
@@ -138,8 +138,8 @@ class PurchaseOrder(BaseModel):
     delivery_date: Optional[date]
     payment_terms: Optional[str]
     delivery_mode: Optional[str]
-    total_cost: int
-    total_including_gst: Optional[float]
+    total_cost: Union[int, float]
+    total_including_gst: Optional[float] 
     signed_po_path: Optional[str]
     signed_po_uploaded_at: Optional[datetime]
     include_annexure: Optional[bool]
