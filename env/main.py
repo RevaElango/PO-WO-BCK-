@@ -203,7 +203,7 @@ async def send_reset_link(email: str = Form(...), db: Session = Depends(get_db))
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
-def create_po(
+async def create_po(
     po_number: str = Form(...),
     po_date: str = Form(...),   
     supplier_name: str = Form(...),
@@ -214,7 +214,7 @@ def create_po(
     quotation_date: str = Form(None),
     email: str = Form(None),
     dated: str = Form(None),
-    total_cost: int = Form(...),
+    total_cost: float = Form(...),
     total_including_gst: float = Form(...),
     delivery_date: str = Form(...),
     payment_terms: str = Form(...),
@@ -225,20 +225,43 @@ def create_po(
     include_annexure: bool = Form(False),
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
-    project_keyword: str = Form(None),
+    project_keyword: str = Form(None),   # may be ID
     budget_head: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
-    final_suffix : str = Form(None),
-    items: str = Form(...),  # JSON string, will parse manually
+    final_suffix: str = Form(None),
+    items: str = Form(...),  # JSON string
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
     import json
-    items_list = json.loads(items)  # Convert items JSON string to Python list
 
-    # ✅ Now use the values to build a POCreate schema manually
+    # --- Parse items JSON safely ---
+    try:
+        items_list = json.loads(items)
+        if not isinstance(items_list, list):
+            raise ValueError("items must be a JSON array")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid items JSON: {e}")
+
+    # --- ✅ Resolve project_keyword like update_po ---
+    project_no = None
+    resolved_keyword = None
+
+    if project_keyword and project_keyword.isdigit():
+        project_detail = (
+            db.query(ProjectNoDetails)
+            .filter(ProjectNoDetails.id == int(project_keyword))
+            .first()
+        )
+        if project_detail:
+            resolved_keyword = project_detail.project_keyword
+            project_no = project_detail.project_no
+    else:
+        resolved_keyword = project_keyword
+
+    # --- Build schema ---
     po_data = schemas.PurchaseOrderCreate(
         po_number=po_number,
         po_date=po_date,
@@ -261,7 +284,8 @@ def create_po(
         include_annexure=include_annexure,
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
-        project_keyword=project_keyword,
+        project_keyword=resolved_keyword,   # ✅ always text
+        project_no=project_no,              # ✅ stored correctly
         budget_head=budget_head,
         prefix=prefix,
         suffix=suffix,
@@ -272,7 +296,7 @@ def create_po(
 
     db_po = crud.create_po(db=db, po=po_data)
 
-    # ✅ Save file (optional)
+    # --- Save file if present ---
     if file and file.content_type == "application/pdf":
         import os
         from datetime import datetime
@@ -330,16 +354,17 @@ def create_work_order(
     annexure_file_path: Optional[str] = Form(None),
 
     # Project ref
-    project_keyword: Optional[str] = Form(None),
+    project_keyword: Optional[str] = Form(None),  # may be ID
     budget_head: str = Form(None),
-    # Totals (from UI)
+
+    # Totals
     total_cost: float = Form(...),
     total_including_gst: float = Form(...),
 
-    # Items as JSON string
+    # Items
     items: str = Form(...),
 
-    # ✅ PDF is REQUIRED so preview_file_path is always set
+    # PDF is REQUIRED
     file: UploadFile = File(...),
 
     db: Session = Depends(get_db),
@@ -357,7 +382,7 @@ def create_work_order(
     if not isinstance(ilist, list) or not all(isinstance(x, dict) for x in ilist):
         raise HTTPException(status_code=400, detail="Items should be a JSON array of objects.")
 
-    # --- Compute scope_of_work and value_of_service from items ---
+    # --- Compute scope_of_work and value_of_service ---
     scope_of_work = ", ".join(
         s for s in (str(i.get("item_description", "")).strip() for i in ilist) if s
     )
@@ -371,7 +396,23 @@ def create_work_order(
     total_cost_dec = Decimal(str(total_cost)).quantize(Decimal("0.01"))
     total_incl_gst_dec = Decimal(str(total_including_gst)).quantize(Decimal("0.01"))
 
-    # --- Build schema (Pydantic will coerce/validate dates & decimals) ---
+    # --- ✅ Resolve project_keyword if it’s an ID ---
+    resolved_keyword = None
+    project_no = None
+
+    if project_keyword and project_keyword.isdigit():
+        project_detail = (
+            db.query(ProjectNoDetails)
+            .filter(ProjectNoDetails.id == int(project_keyword))
+            .first()
+        )
+        if project_detail:
+            resolved_keyword = project_detail.project_keyword
+            project_no = project_detail.project_no
+    else:
+        resolved_keyword = project_keyword
+
+    # --- Build schema ---
     wo = schemas.WorkOrderCreate(
         work_order_no=work_order_no,
         date=date,
@@ -381,7 +422,6 @@ def create_work_order(
         requester_name=requester_name,
         indent_date=indent_date,
 
-        # computed server-side
         scope_of_work=scope_of_work,
         value_of_service=value_of_service,
 
@@ -396,8 +436,11 @@ def create_work_order(
         include_annexure=include_annexure,
         annexure_text=annexure_text or None,
         annexure_file_path=annexure_file_path or None,
-        project_keyword=project_keyword or None,
+
+        project_keyword=resolved_keyword,   # ✅ resolved text, not ID
+        project_no=project_no,              # ✅ now stored
         budget_head=budget_head,
+
         total_cost=total_cost_dec,
         total_including_gst=total_incl_gst_dec,
 
@@ -405,10 +448,10 @@ def create_work_order(
         created_by=user["username"],
     )
 
-    # --- Persist (your CRUD handles project_no lookup and items creation) ---
+    # --- Persist ---
     db_work_order = crud.create_work_order(db=db, work_order=wo)
 
-    # --- Save the PDF and set preview_file_path (always required) ---
+    # --- Save the PDF ---
     if file.content_type not in ("application/pdf", "application/octet-stream"):
         raise HTTPException(status_code=400, detail="A PDF (application/pdf) is required for 'file'.")
 
