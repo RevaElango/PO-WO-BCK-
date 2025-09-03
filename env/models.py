@@ -38,8 +38,9 @@ class PurchaseOrder(Base):
     email = Column(String(100), nullable=True)
     created_by = Column(String(100), nullable=True)
     dated = Column(Date, nullable=True)
-    total_cost = Column(Integer)  # 💰 Grand total of all items
-    total_including_gst = Column(Float, nullable=False, default=0.0)  # 💡 Add this
+    total_cost = Column(Numeric(12, 2), nullable=False, default=0)
+    total_including_gst = Column(Numeric(12, 2), nullable=False, default=0)  # 💡 Add this
+
 
 
     delivery_date = Column(Date, nullable=False)
@@ -80,9 +81,9 @@ class PurchaseOrderItem(Base):
 
     item_description = Column(String(255), nullable=False)  # ✅ Add length
     quantity = Column(Integer, nullable=False)
-    unit_price = Column(Integer, nullable=False)
-    item_total = Column(Integer, nullable=False)
-    gst = Column(Float, nullable=False, default=0.0)  # ✅ Added GST field
+    unit_price = Column(Numeric(18, 2), nullable=False)  # keep 2 dp (or use 3/6 if you need more)
+    item_total = Column(Numeric(18, 2), nullable=False) 
+    gst = Column(Numeric(5, 2), nullable=False, default=0)  # was Float -> Numeric
 
     po = relationship("PurchaseOrder", back_populates="items")
 

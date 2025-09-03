@@ -214,8 +214,8 @@ async def create_po(
     quotation_date: str = Form(None),
     email: str = Form(None),
     dated: str = Form(None),
-    total_cost: float = Form(...),
-    total_including_gst: float = Form(...),
+    total_cost: Decimal = Form(...),
+    total_including_gst: Decimal = Form(...),
     delivery_date: str = Form(...),
     payment_terms: str = Form(...),
     additional_terms: str = Form(None),
@@ -293,7 +293,6 @@ async def create_po(
         items=items_list,
         created_by=user['username']
     )
-
     db_po = crud.create_po(db=db, po=po_data)
 
     # --- Save file if present ---
