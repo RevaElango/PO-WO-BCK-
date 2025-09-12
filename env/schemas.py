@@ -190,7 +190,7 @@ class WorkOrderBase(BaseModel):
     value_of_service: Optional[condecimal(max_digits=14, decimal_places=2)] = Field(default=Decimal("0"))
 
     # Totals/tax
-    tax: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
+    tax: str | None = None 
     total_cost: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
     total_including_gst: condecimal(max_digits=14, decimal_places=2) = Field(default=Decimal("0"))
 

@@ -345,7 +345,7 @@ def create_work_order(
     additional_terms: Optional[str] = Form(None),
 
     # numbers
-    tax: float = Form(0),
+    tax: str = Form(0),
 
     # Annexure
     include_annexure: bool = Form(False),
@@ -391,7 +391,7 @@ def create_work_order(
         for i in ilist
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    tax_dec = Decimal(str(tax or 0)).quantize(Decimal("0.00"))
+    tax_str = str(tax or "")
     total_cost_dec = Decimal(str(total_cost)).quantize(Decimal("0.01"))
     total_incl_gst_dec = Decimal(str(total_including_gst)).quantize(Decimal("0.01"))
 
@@ -425,7 +425,7 @@ def create_work_order(
         value_of_service=value_of_service,
 
         duration_of_service=duration_of_service,
-        tax=tax_dec,
+       tax=tax_str,
         payment_term=payment_term,
         supplier_name=supplier_name,
         address=address,
@@ -1124,7 +1124,7 @@ async def update_work_order(
     address: str = Form(...),
     indent_date: str = Form(...),
     requester_name: str = Form(...),
-    tax: int = Form(...),
+    tax: str = Form(...),
     duration_of_service: str = Form(...),
     payment_term: str = Form(...),
     deliverables: Optional[str] = Form(None),
