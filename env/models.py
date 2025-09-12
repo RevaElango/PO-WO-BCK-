@@ -112,7 +112,7 @@ class WorkOrder(Base):
     indent_date = Column(Date, nullable=True)
     scope_of_work = Column(String, nullable=False)
     value_of_service = Column(Integer, nullable=False)
-    tax = Column(Integer, nullable=False)
+    tax = Column(String, nullable=False)
     duration_of_service = Column(String, nullable=False)
     payment_term = Column(String, nullable=False)
     deliverables = Column(String, nullable=True)
