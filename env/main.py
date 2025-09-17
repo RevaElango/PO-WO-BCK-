@@ -9,7 +9,7 @@ import schemas, crud
 from schemas import *
 from database import SessionLocal, engine, Base,get_db
 from models import * 
-import os
+import os,base64
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import update
@@ -22,6 +22,8 @@ from email.mime.multipart import MIMEMultipart
 from decimal import Decimal, ROUND_HALF_UP
 import uuid
 from sqlalchemy import text
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 
 from models import User
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
@@ -31,7 +33,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 revoked_tokens = set()
 
 # Secret key and algorithm
-SECRET_KEY = "k3#4f%9*bsAY32%tio$9.015gBS"
+SECRET_KEY = b'k3#4f%9*bsAY32%tio$9.015gBS4s3R@'  # Must be bytes
+BLOCK_SIZE = 16  # AES block size
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -59,7 +63,56 @@ def get_db():
     finally:
         db.close()
 
-# JWT creation
+
+
+def decrypt_password(encrypted_password: str) -> str:
+    try:
+        # Base64 decode the payload
+        encrypted_bytes = base64.b64decode(encrypted_password)
+
+        # Extract IV (first 16 bytes) and ciphertext
+        iv = encrypted_bytes[:BLOCK_SIZE]
+        ciphertext = encrypted_bytes[BLOCK_SIZE:]
+
+        # Create AES cipher
+        cipher = AES.new(SECRET_KEY, AES.MODE_CBC, iv)
+        decrypted_bytes = cipher.decrypt(ciphertext)
+
+        # Remove PKCS7 padding
+        decrypted = unpad(decrypted_bytes, BLOCK_SIZE).decode('utf-8')
+        return decrypted
+
+    except Exception as e:
+        print("Decryption error:", e)
+        raise
+
+@app.post("/login", response_model=TokenResponse)
+def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
+    db_user = crud.get_user_by_email(db, email=user.email)
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    # Decrypt password from payload
+    try:
+        decrypted_password = decrypt_password(user.password)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid password encryption")
+
+    # Verify password
+    if not verify_password(decrypted_password, db_user.password_hash):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    # Generate JWT token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(
+        data={"user": {"id": db_user.id, "email": db_user.email, "username": db_user.username, "role_id": db_user.role_id}},
+        expires_delta=access_token_expires,
+    )
+    return TokenResponse(access_token=token, expires_in_minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+# Verify bcrypt password
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -96,9 +149,6 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-@app.post("/login", response_model=TokenResponse)
-def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_email(db, email=user.email)
 
     if not db_user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
