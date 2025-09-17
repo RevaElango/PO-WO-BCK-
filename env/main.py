@@ -20,13 +20,15 @@ import secrets,smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from decimal import Decimal, ROUND_HALF_UP
-
+import uuid
+from sqlalchemy import text
 
 from models import User
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+revoked_tokens = set()
 
 # Secret key and algorithm
 SECRET_KEY = "k3#4f%9*bsAY32%tio$9.015gBS"
@@ -62,21 +64,31 @@ def get_db():
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
-    to_encode.update({"exp": expire})
+    jti = str(uuid.uuid4())  # unique token ID
+    to_encode.update({"exp": expire, "jti": jti})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 # Token verification
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security), db: Session = Depends(get_db)):
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+
+        # Query revoked tokens
+        result = db.execute(text("SELECT 1 FROM revoked_tokens WHERE jti = :jti"), {"jti": jti}).first()
+        if result:
+            raise HTTPException(status_code=401, detail="Token has been revoked")
+
         user_data = payload.get("user")
         if not user_data:
             raise HTTPException(status_code=401, detail="Invalid token payload")
+
         return user_data
     except JWTError:
         raise HTTPException(status_code=401, detail="Token is invalid or expired")
+
     
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -123,6 +135,26 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
         access_token=token,
         expires_in_minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
+@app.get("/me")
+def read_current_user(user: dict = Depends(get_current_user)):
+    return {"message": "You are logged in", "user": user}
+
+@app.post("/logout")
+def logout(credentials: HTTPAuthorizationCredentials = Security(security), db: Session = Depends(get_db)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        if not jti:
+            raise HTTPException(status_code=400, detail="Invalid token")
+
+        # Insert into DB using raw query
+        db.execute(text("INSERT INTO revoked_tokens (jti) VALUES (:jti)"), {"jti": jti})
+        db.commit()
+
+        return {"message": "Successfully logged out"}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 @app.get("/get-email-from-token")
 def get_email_from_token(token: str):
     email = reset_tokens.get(token)
