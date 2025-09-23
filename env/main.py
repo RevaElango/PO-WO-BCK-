@@ -238,7 +238,7 @@ async def send_reset_link(email: str = Form(...), db: Session = Depends(get_db))
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
-        return JSONResponse(status_code=404, content={"error": "User not found"})
+        return JSONResponse(status_code=404, content={"error": " "})
 
     # Generate a secure token
     token = secrets.token_urlsafe(32)
