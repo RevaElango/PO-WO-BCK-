@@ -311,6 +311,7 @@ class TotalOrder(BaseModel):
     preview_files: Optional[str]
     order_type: Optional[str]
     amendment_no: Optional[str]
+    project_keyword: Optional[str]
  
     class Config:
         orm_mode = True

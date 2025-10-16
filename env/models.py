@@ -236,6 +236,8 @@ class TotalOrder(Base):
     preview_files = Column(String(255), nullable=True)
     order_type = Column(String(10), nullable=True)
     amendment_no = Column(String(255), nullable=True)
+    project_keyword = Column(String(255), nullable=True)
+
 class UploadedOrder(Base):
     __tablename__ = "uploaded_orders"
 
