@@ -67,24 +67,18 @@ def get_db():
 
 def decrypt_password(encrypted_password: str) -> str:
     try:
-        # Base64 decode the payload
+        # Try decrypting AES-encrypted Base64
         encrypted_bytes = base64.b64decode(encrypted_password)
-
-        # Extract IV (first 16 bytes) and ciphertext
         iv = encrypted_bytes[:BLOCK_SIZE]
         ciphertext = encrypted_bytes[BLOCK_SIZE:]
-
-        # Create AES cipher
         cipher = AES.new(SECRET_KEY, AES.MODE_CBC, iv)
         decrypted_bytes = cipher.decrypt(ciphertext)
-
-        # Remove PKCS7 padding
         decrypted = unpad(decrypted_bytes, BLOCK_SIZE).decode('utf-8')
         return decrypted
-
     except Exception as e:
-        print("Decryption error:", e)
-        raise
+        print("⚠️ Password decryption failed, using plain password:", e)
+        # Assume it's already plain
+        return encrypted_password
 
 @app.post("/login", response_model=TokenResponse)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
