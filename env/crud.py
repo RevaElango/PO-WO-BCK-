@@ -137,8 +137,6 @@ def get_dashboard_counts(db: Session):
         "amendment_orders": am_count,
         "total_orders": total
     }
-
-
 # -------------------------
 # Helpers
 # -------------------------
@@ -184,3 +182,35 @@ def create_project_no(db: Session, data: schemas.ProjectNoCreate):
     db.commit()
     db.refresh(entry)
     return entry
+def create_supplier(db: Session, supplier: schemas.SupplierCreate):
+    """
+    Add a new supplier to the suppliers table.
+    """
+    db_supplier = models.Supplier(
+        supplier_name=supplier.supplier_name,
+        supplier_address=supplier.supplier_address,
+        type=supplier.type
+    )
+    db.add(db_supplier)
+    db.commit()
+    db.refresh(db_supplier)
+    return db_supplier
+
+
+def get_suppliers(db: Session):
+    """
+    Retrieve all suppliers from the suppliers table.
+    """
+    return db.query(models.Supplier).order_by(models.Supplier.id.desc()).all()
+
+
+def delete_supplier(db: Session, supplier_id: int):
+    """
+    Delete a supplier by ID.
+    """
+    supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if supplier:
+        db.delete(supplier)
+        db.commit()
+        return True
+    return False
