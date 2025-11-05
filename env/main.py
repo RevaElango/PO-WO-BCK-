@@ -24,6 +24,8 @@ import uuid
 from sqlalchemy import text
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
+from sqlalchemy import func
+
 
 from models import User
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
@@ -993,16 +995,79 @@ def add_supplier(
     if current_user["role_id"] != 1:
         raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
 
+    # ✅ Case-insensitive duplicate check
+    existing_supplier = db.query(Supplier).filter(
+        func.lower(Supplier.supplier_name) == supplier.supplier_name.lower(),
+        func.lower(Supplier.supplier_address) == supplier.supplier_address.lower()
+    ).first()
+
+    if existing_supplier:
+        raise HTTPException(
+            status_code=400,
+            detail="Vendor with the same name and address already exists"
+        )
+
     new_supplier = Supplier(
         supplier_name=supplier.supplier_name,
         supplier_address=supplier.supplier_address,
-        type=''  # Default value
+        type=''
     )
     db.add(new_supplier)
     db.commit()
     db.refresh(new_supplier)
 
-    return {"message": "Supplier added successfully"}  # ✅ Now no validation error
+    return {"message": "Supplier added successfully"}
+
+@app.put("/suppliers/{supplier_id}")
+def update_supplier(
+    supplier_id: int,
+    supplier_update: SupplierCreate,  # You can reuse your existing Pydantic model
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Restrict editing to Admin users
+    if current_user["role_id"] != 1:
+        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
+    # Find supplier by ID
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    # Update supplier details
+    supplier.supplier_name = supplier_update.supplier_name
+    supplier.supplier_address = supplier_update.supplier_address
+    supplier.type = ''  # Keep default or modify if needed
+
+    db.commit()
+    db.refresh(supplier)
+
+    return {"message": "Supplier updated successfully", "supplier": {
+        "id": supplier.id,
+        "supplier_name": supplier.supplier_name,
+        "supplier_address": supplier.supplier_address
+    }}
+
+
+@app.delete("/suppliers/{supplier_id}")
+def delete_supplier(
+    supplier_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Restrict deletion to Admin users
+    if current_user["role_id"] != 1:
+        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    db.delete(supplier)
+    db.commit()
+
+    return {"message": "Supplier deleted successfully"}
+
 
 @app.get("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
 def get_purchase_order(
@@ -1384,5 +1449,6 @@ def create_project_no_detail(
         raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
 
     return crud.create_project_no(db, payload)
+
 
 
