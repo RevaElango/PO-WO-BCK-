@@ -48,7 +48,7 @@ security = HTTPBearer()
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:4200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1438,17 +1438,92 @@ def get_amendment_order(am_id: int, db: Session = Depends(get_db), user: dict = 
     return am
 
 
-@app.post("/project-no-details", response_model=schemas.ProjectNoResponse)
+@app.post("/project-no-details", response_model=schemas.ProjectNoCreateResponse)
 def create_project_no_detail(
     payload: schemas.ProjectNoCreate,
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    # Only admins can create project number details
     if user["role_id"] != 1:
         raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
 
-    return crud.create_project_no(db, payload)
+    existing = db.query(models.ProjectNoDetails).filter(
+        func.lower(models.ProjectNoDetails.project_no) == payload.project_no.lower()
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Project number already exists")
+
+    new_project = models.ProjectNoDetails(
+        project_no=payload.project_no,
+        project_keyword=payload.project_keyword,
+        pn_prefix=payload.pn_prefix,
+        pn_suffix=payload.pn_suffix
+    )
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+
+    return {"message": "Project number created successfully", "data": new_project}
+
+@app.put("/project-no-details/{project_id}")
+def update_project_no(
+    project_id: int,
+    payload: schemas.ProjectNoCreate,  # reuse existing schema
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # ✅ Allow only Admins
+    if user["role_id"] != 1:
+        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
+    # ✅ Find project by ID
+    project = db.query(models.ProjectNoDetails).filter(models.ProjectNoDetails.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project number not found")
+
+    # ✅ Check for duplicate project_no (case-insensitive, excluding self)
+    existing = db.query(models.ProjectNoDetails).filter(
+        func.lower(models.ProjectNoDetails.project_no) == payload.project_no.lower(),
+        models.ProjectNoDetails.id != project_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Project number already exists")
+
+    # ✅ Update fields
+    project.project_no = payload.project_no
+    project.project_keyword = payload.project_keyword
+    project.pn_prefix = payload.pn_prefix
+    project.pn_suffix = payload.pn_suffix
+
+    db.commit()
+    db.refresh(project)
+
+    return {
+        "message": "Project number updated successfully",
+        "data": project
+    }
+
+@app.delete("/project-no-details/{project_id}")
+def delete_project_no(
+    project_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    # ✅ Allow only Admins
+    if user["role_id"] != 1:
+        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
+    # ✅ Find project
+    project = db.query(models.ProjectNoDetails).filter(models.ProjectNoDetails.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project number not found")
+
+    db.delete(project)
+    db.commit()
+
+    return {"message": "Project number deleted successfully"}
+
 
 
 

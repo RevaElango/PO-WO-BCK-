@@ -333,3 +333,10 @@ class ProjectNoResponse(ProjectNoCreate):
 
     class Config:
         from_attributes = True  # Pydantic v2
+
+class ProjectNoCreateResponse(BaseModel):
+    message: str
+    data: ProjectNoResponse
+
+    class Config:
+        from_attributes = True  # Pydantic v2
