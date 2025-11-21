@@ -1444,8 +1444,6 @@ def create_project_no_detail(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    if user["role_id"] != 1:
-        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
 
     existing = db.query(models.ProjectNoDetails).filter(
         func.lower(models.ProjectNoDetails.project_no) == payload.project_no.lower()
@@ -1473,9 +1471,7 @@ def update_project_no(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    # ✅ Allow only Admins
-    if user["role_id"] != 1:
-        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
+
 
     # ✅ Find project by ID
     project = db.query(models.ProjectNoDetails).filter(models.ProjectNoDetails.id == project_id).first()
