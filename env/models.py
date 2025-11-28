@@ -225,6 +225,7 @@ class TotalOrder(Base):
     Supplier_Name = Column(String(255), nullable=True)
     Quantity = Column(Integer, nullable=True)
     Total_Cost = Column(DECIMAL(18, 2), nullable=True)
+    total_including_gst = Column(DECIMAL(12, 2), nullable=False, default=0.00)
     project_no = Column(String(100), nullable=True)
     Order_No = Column(String(100), nullable=True)
     requestor_name = Column(String(100), nullable=True)

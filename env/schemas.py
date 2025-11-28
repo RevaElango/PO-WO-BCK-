@@ -300,6 +300,7 @@ class TotalOrder(BaseModel):
     Supplier_Name: Optional[str]
     Quantity: Optional[str]
     Total_Cost: Optional[float]
+    total_including_gst: Optional[float]
     project_no: Optional[str]
     Order_No: Optional[str]
     requestor_name: Optional[str]
