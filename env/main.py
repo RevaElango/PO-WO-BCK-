@@ -282,7 +282,6 @@ async def send_reset_link(email: str = Form(...), db: Session = Depends(get_db))
 
 @app.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
 async def create_po(
-    po_number: str = Form(...),
     po_date: str = Form(...),   
     supplier_name: str = Form(...),
     supplier_address: str = Form(...),
@@ -303,13 +302,12 @@ async def create_po(
     include_annexure: bool = Form(False),
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
-    project_keyword: str = Form(None),   # may be ID
+    project_keyword: str = Form(None),
     budget_head: str = Form(None),
-    prefix: str = Form(None),
-    suffix: str = Form(None),
-    final_suffix: str = Form(None),
-    items: str = Form(...),  # JSON string
-    file: UploadFile = File(None),
+    prefix: str = Form(...),      # ✅ Required for PO generation
+    suffix: str = Form(...),      # ✅ Required for PO generation
+    final_suffix: str = Form(...), # ✅ Required for PO generation
+    items: str = Form(...),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
@@ -341,7 +339,7 @@ async def create_po(
 
     # --- Build schema ---
     po_data = schemas.PurchaseOrderCreate(
-        po_number=po_number,
+        po_number="PLACEHOLDER",  # Will be overwritten in crud.create_po
         po_date=po_date,
         supplier_name=supplier_name,
         supplier_address=supplier_address,
@@ -362,8 +360,8 @@ async def create_po(
         include_annexure=include_annexure,
         annexure_text=annexure_text,
         annexure_file_path=annexure_file_path,
-        project_keyword=resolved_keyword,   # ✅ always text
-        project_no=project_no,              # ✅ stored correctly
+        project_keyword=resolved_keyword,
+        project_no=project_no,
         budget_head=budget_head,
         prefix=prefix,
         suffix=suffix,
@@ -371,27 +369,45 @@ async def create_po(
         items=items_list,
         created_by=user['username']
     )
+    
+    # ✅ This will generate the atomic PO number
     db_po = crud.create_po(db=db, po=po_data)
+    
+    return db_po
 
-    # --- Save file if present ---
+
+# ✅ NEW ENDPOINT: Upload PDF after PO is created
+@app.post("/purchase-orders/{po_id}/upload-pdf")
+async def upload_po_pdf(
+    po_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    import os
+    from datetime import datetime
+    
+    db_po = db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
+    if not db_po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
     if file and file.content_type == "application/pdf":
-        import os
-        from datetime import datetime
-
-        safe_po_number = po_number.replace("/", "_")
+        safe_po_number = db_po.po_number.replace("/", "_")
         filename = f"generated_po_{safe_po_number}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
         generated_po_dir = "uploads/generated_po_files"
         os.makedirs(generated_po_dir, exist_ok=True)
         file_path = os.path.join(generated_po_dir, filename)
 
         with open(file_path, "wb") as buffer:
-            buffer.write(file.file.read())
+            buffer.write(await file.read())
 
         relative_url = f"{BASE_URL}/uploads/generated_po_files/{filename}"
         db_po.preview_file_path = relative_url
         db.commit()
-
-    return db_po
+        
+        return {"message": "PDF uploaded successfully", "file_path": relative_url}
+    
+    raise HTTPException(status_code=400, detail="Invalid file type")
 
 @app.get("/purchase-orders/view", response_model=List[schemas.PurchaseOrder])
 def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -399,12 +415,13 @@ def read_pos(db: Session = Depends(get_db), user: dict = Depends(get_current_use
 
 @app.post("/work-orders/", response_model=schemas.WorkOrder)
 def create_work_order(
-    # Core identifiers
-    work_order_no: str = Form(...),
+    # ✅ work_order_no is now OPTIONAL - backend will generate
+    work_order_no: Optional[str] = Form(None),
     prefix: str = Form(...),
     suffix: str = Form(...),
+    pi_code: str = Form(...),  # ✅ Add PI code for number generation
 
-    # Dates (as strings; Pydantic will coerce)
+    # Dates
     date: str = Form(...),
     quotation_date: Optional[str] = Form(None),
     indent_date: str = Form(...),
@@ -422,8 +439,8 @@ def create_work_order(
     deliverables: str = Form(...),
     additional_terms: Optional[str] = Form(None),
 
-    # numbers
-    tax: str = Form(0),
+    # Numbers
+    tax: str = Form("0"),
 
     # Annexure
     include_annexure: bool = Form(False),
@@ -431,8 +448,8 @@ def create_work_order(
     annexure_file_path: Optional[str] = Form(None),
 
     # Project ref
-    project_keyword: Optional[str] = Form(None),  # may be ID
-    budget_head: str = Form(None),
+    project_keyword: Optional[str] = Form(None),
+    budget_head: Optional[str] = Form(None),
 
     # Totals
     total_cost: float = Form(...),
@@ -441,13 +458,16 @@ def create_work_order(
     # Items
     items: str = Form(...),
 
-    # PDF is REQUIRED
-    file: UploadFile = File(...),
+    # ✅ PDF is now OPTIONAL - uploaded in second step
+    file: UploadFile = File(None),
 
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    # --- Validate & parse items ---
+    import json
+    from decimal import Decimal, ROUND_HALF_UP
+    
+    # Validate & parse items
     if not items or not items.strip():
         raise HTTPException(status_code=400, detail="Items field is missing or empty.")
 
@@ -459,7 +479,7 @@ def create_work_order(
     if not isinstance(ilist, list) or not all(isinstance(x, dict) for x in ilist):
         raise HTTPException(status_code=400, detail="Items should be a JSON array of objects.")
 
-    # --- Compute scope_of_work and value_of_service ---
+    # Compute scope_of_work and value_of_service
     scope_of_work = ", ".join(
         s for s in (str(i.get("item_description", "")).strip() for i in ilist) if s
     )
@@ -469,11 +489,7 @@ def create_work_order(
         for i in ilist
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    tax_str = str(tax or "")
-    total_cost_dec = Decimal(str(total_cost)).quantize(Decimal("0.01"))
-    total_incl_gst_dec = Decimal(str(total_including_gst)).quantize(Decimal("0.01"))
-
-    # --- ✅ Resolve project_keyword if it’s an ID ---
+    # Resolve project_keyword
     resolved_keyword = None
     project_no = None
 
@@ -489,67 +505,118 @@ def create_work_order(
     else:
         resolved_keyword = project_keyword
 
-    # --- Build schema ---
+    # ✅ Generate work order number atomically
+    fy = crud.get_financial_year()
+    generated_wo_number = crud.generate_wo_number_atomic(
+        db=db,
+        prefix=prefix,
+        pi_code=pi_code,
+        final_suffix=suffix
+    )
+
+    # Build schema with generated number
     wo = schemas.WorkOrderCreate(
-        work_order_no=work_order_no,
+        work_order_no=generated_wo_number,  # ✅ Use generated number
+        prefix=prefix,
+        suffix=suffix,
         date=date,
         quotation_no=quotation_no or None,
         email=email or None,
         quotation_date=quotation_date or None,
         requester_name=requester_name,
         indent_date=indent_date,
-
         scope_of_work=scope_of_work,
         value_of_service=value_of_service,
-
         duration_of_service=duration_of_service,
-       tax=tax_str,
+        tax=str(tax or "0"),
         payment_term=payment_term,
         supplier_name=supplier_name,
         address=address,
         deliverables=deliverables,
         additional_terms=additional_terms or None,
-
         include_annexure=include_annexure,
         annexure_text=annexure_text or None,
         annexure_file_path=annexure_file_path or None,
-
-        project_keyword=resolved_keyword,   # ✅ resolved text, not ID
-        project_no=project_no,              # ✅ now stored
+        project_keyword=resolved_keyword,
+        project_no=project_no,
         budget_head=budget_head,
-
-        total_cost=total_cost_dec,
-        total_including_gst=total_incl_gst_dec,
-
+        total_cost=Decimal(str(total_cost)).quantize(Decimal("0.01")),
+        total_including_gst=Decimal(str(total_including_gst)).quantize(Decimal("0.01")),
         items=ilist,
         created_by=user["username"],
     )
 
-    # --- Persist ---
-    db_work_order = crud.create_work_order(db=db, work_order=wo)
-
-    # --- Save the PDF ---
-    if file.content_type not in ("application/pdf", "application/octet-stream"):
-        raise HTTPException(status_code=400, detail="A PDF (application/pdf) is required for 'file'.")
-
-    safe_no = work_order_no.replace("/", "_")
-    filename = f"generated_wo_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-    wo_dir = os.path.join("uploads", "generated_work_order_pdfs")
-    os.makedirs(wo_dir, exist_ok=True)
-    disk_path = os.path.join(wo_dir, filename)
-
-    with open(disk_path, "wb") as buffer:
-        buffer.write(file.file.read())
-
-    relative_url = f"/uploads/generated_work_order_pdfs/{filename}"
-    full_url = f"{BASE_URL}{relative_url}" if BASE_URL else relative_url
-
-    db_work_order.preview_file_path = full_url
+    # Create work order (number already set, don't regenerate)
+    wo_data = wo.dict(exclude={"items"})
+    wo_data["project_no"] = project_no
+    
+    db_work_order = models.WorkOrder(**wo_data)
     db.add(db_work_order)
+    db.flush()
+
+    # Attach items
+    db_work_order.items = [
+        models.WorkOrderItem(
+            item_description=it["item_description"],
+            quantity=int(it.get("quantity", 0)),
+            unit_price=float(it.get("unit_price", 0)),
+            item_total=float(it.get("item_total", 0)),
+            gst=float(it.get("gst", 0)),
+        )
+        for it in ilist
+    ]
+
     db.commit()
     db.refresh(db_work_order)
 
+    # Save PDF if provided
+    if file and file.filename:
+        safe_no = generated_wo_number.replace("/", "_")
+        filename = f"generated_wo_{safe_no}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        wo_dir = os.path.join("uploads", "generated_work_order_pdfs")
+        os.makedirs(wo_dir, exist_ok=True)
+        disk_path = os.path.join(wo_dir, filename)
+
+        with open(disk_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        full_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{filename}"
+        db_work_order.preview_file_path = full_url
+        db.commit()
+        db.refresh(db_work_order)
+
     return db_work_order
+
+
+# ✅ NEW: Upload PDF endpoint for work orders
+@app.post("/work-orders/{wo_id}/upload-pdf")
+async def upload_wo_pdf(
+    wo_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    db_wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == wo_id).first()
+    if not db_wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    
+    if file and file.content_type in ("application/pdf", "application/octet-stream"):
+        safe_wo_number = db_wo.work_order_no.replace("/", "_")
+        filename = f"generated_wo_{safe_wo_number}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        wo_dir = "uploads/generated_work_order_pdfs"
+        os.makedirs(wo_dir, exist_ok=True)
+        file_path = os.path.join(wo_dir, filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(await file.read())
+
+        full_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{filename}"
+        db_wo.preview_file_path = full_url
+        db.commit()
+        
+        return {"message": "PDF uploaded successfully", "file_path": full_url}
+    
+    raise HTTPException(status_code=400, detail="Invalid file type")
 
 @app.get("/work-orders/view", response_model=List[schemas.WorkOrder])
 def read_work_orders(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -1109,7 +1176,7 @@ def get_purchase_order(
 @app.put("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
 async def update_po(
     po_id: int,
-    po_number: str = Form(...),
+    po_number: str = Form(None),  # ✅ Make OPTIONAL - will use existing if not provided
     po_date: str = Form(...),
     supplier_name: str = Form(...),
     supplier_address: str = Form(...),
@@ -1130,37 +1197,41 @@ async def update_po(
     include_annexure: bool = Form(False),
     annexure_text: str = Form(None),
     annexure_file_path: str = Form(None),
-    project_keyword: str = Form(None),   # may come as ID from UI
-    project_no: str = Form(None),        # may come null
+    project_keyword: str = Form(None),
+    project_no: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
+    final_suffix: str = Form(None),  # ✅ Add this if missing
     items: str = Form(...),
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),  # ✅ Make OPTIONAL - may not always upload new PDF
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
-):
-    # 1. Get PO
+):    
+    # 1. Get existing PO
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
 
-    # 2. Ensure directory exists
-    pdf_dir = "uploads/generated_po_files"
-    os.makedirs(pdf_dir, exist_ok=True)
+    # ✅ 2. Use existing PO number if not provided (DON'T change PO number on edit)
+    effective_po_number = po_number if po_number else po.po_number
+    
+    # 3. Handle PDF file upload (only if new file provided)
+    if file and file.filename:
+        pdf_dir = "uploads/generated_po_files"
+        os.makedirs(pdf_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        safe_po_number = effective_po_number.replace('/', '_')
+        pdf_filename = f"generated_po_{safe_po_number}_{timestamp}.pdf"
+        pdf_path = os.path.join(pdf_dir, pdf_filename)
 
-    # 3. Save PDF
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    pdf_filename = f"generated_po_{po_number.replace('/', '_')}_{timestamp}.pdf"
-    pdf_path = os.path.join(pdf_dir, pdf_filename)
+        with open(pdf_path, "wb") as f:
+            f.write(await file.read())
+        
+        po.preview_file_path = f"{BASE_URL}/uploads/generated_po_files/{pdf_filename}"
 
-    with open(pdf_path, "wb") as f:
-        f.write(await file.read())
-
-    base_url = BASE_URL
-
-    # 4. Update fields
-    po.po_number = po_number
+    # 4. Update fields (keep existing PO number)
+    po.po_number = effective_po_number  # ✅ Use existing or provided
     po.po_date = po_date
     po.supplier_name = supplier_name
     po.supplier_address = supplier_address
@@ -1196,13 +1267,13 @@ async def update_po(
             po.project_keyword = None
             po.project_no = None
     else:
-        # If frontend sent actual keyword string, use it directly
         po.project_keyword = project_keyword
         po.project_no = project_no
 
     po.prefix = prefix
     po.suffix = suffix
-    po.preview_file_path = f"{base_url}/uploads/generated_po_files/{pdf_filename}"
+    if final_suffix:
+        po.final_suffix = final_suffix
 
     # 5. Replace items
     db.query(PurchaseOrderItem).filter(PurchaseOrderItem.po_id == po.id).delete()
@@ -1254,9 +1325,9 @@ def get_work_order(
 @app.put("/work-orders/{wo_id}", response_model=schemas.WorkOrder)
 async def update_work_order(
     wo_id: int,
-    work_order_no: str = Form(...),
-    prefix: str = Form(...),
-    suffix: str = Form(...),
+    work_order_no: Optional[str] = Form(None),  # ✅ OPTIONAL - use existing if not provided
+    prefix: Optional[str] = Form(None),
+    suffix: Optional[str] = Form(None),
     date: str = Form(...),
     quotation_no: Optional[str] = Form(None),
     quotation_date: Optional[str] = Form(None),
@@ -1273,44 +1344,42 @@ async def update_work_order(
     include_annexure: bool = Form(False),
     annexure_text: Optional[str] = Form(None),
     annexure_file_path: Optional[str] = Form(None),
-    project_keyword: Optional[str] = Form(None),   # may come as ID from UI
+    project_keyword: Optional[str] = Form(None),
     budget_head: Optional[str] = Form(None),
-
-    # NEW: totals (optional)
     total_cost: Optional[float] = Form(None),
     total_including_gst: Optional[float] = Form(None),
-
-    # NEW: items payload (JSON string)
     items: Optional[str] = Form(None),
-
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),  # ✅ OPTIONAL - may not upload new PDF
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
+    # 1. Get existing work order
     wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work Order not found")
 
-    # --- Save new PDF ---
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    safe_wo_number = work_order_no.replace("/", "_")
-    pdf_filename = f"generated_wo_{safe_wo_number}_{timestamp}.pdf"
-    pdf_dir = "uploads/generated_work_order_pdfs"
-    os.makedirs(pdf_dir, exist_ok=True)
-    pdf_path = os.path.join(pdf_dir, pdf_filename)
+    # ✅ 2. Use existing work order number if not provided
+    effective_wo_number = work_order_no if work_order_no else wo.work_order_no
 
-    try:
-        with open(pdf_path, "wb") as f:
-            f.write(await file.read())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to write PDF: {e}")
+    # 3. Save new PDF only if file is provided
+    if file and file.filename:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        safe_wo_number = effective_wo_number.replace("/", "_")
+        pdf_filename = f"generated_wo_{safe_wo_number}_{timestamp}.pdf"
+        pdf_dir = "uploads/generated_work_order_pdfs"
+        os.makedirs(pdf_dir, exist_ok=True)
+        pdf_path = os.path.join(pdf_dir, pdf_filename)
 
-    preview_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{pdf_filename}"
+        try:
+            with open(pdf_path, "wb") as f:
+                f.write(await file.read())
+            preview_url = f"{BASE_URL}/uploads/generated_work_order_pdfs/{pdf_filename}"
+            wo.preview_file_path = preview_url
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to write PDF: {e}")
 
-    # --- Update WO header fields ---
-    wo.work_order_no = work_order_no
-    wo.prefix = prefix
-    wo.suffix = suffix
+    # 4. Update WO header fields
+    wo.work_order_no = effective_wo_number  # ✅ Use existing or provided
     wo.date = date
     wo.quotation_no = quotation_no
     wo.quotation_date = quotation_date
@@ -1327,9 +1396,14 @@ async def update_work_order(
     wo.include_annexure = include_annexure
     wo.annexure_text = annexure_text
     wo.annexure_file_path = annexure_file_path
-    wo.budget_head = budget_head 
-    wo.preview_file_path = preview_url
+    wo.budget_head = budget_head
     wo.updated_at = datetime.now()
+
+    # Update prefix/suffix only if provided
+    if prefix:
+        wo.prefix = prefix
+    if suffix:
+        wo.suffix = suffix
 
     # ✅ Resolve project_keyword if UI sent ID
     if project_keyword and project_keyword.isdigit():
@@ -1346,10 +1420,8 @@ async def update_work_order(
             wo.project_no = None
     else:
         wo.project_keyword = project_keyword
-        # don’t override project_no unless explicitly passed
-        # (so it keeps old value if frontend doesn’t send it)
 
-    # --- Replace items if provided ---
+    # 5. Replace items if provided
     parsed_items: Optional[List[dict]] = None
     if items is not None:
         try:
@@ -1383,6 +1455,7 @@ async def update_work_order(
         if new_rows:
             db.bulk_save_objects(new_rows)
 
+        # Compute totals if not provided
         if total_cost is None or total_including_gst is None:
             excl, incl = 0.0, 0.0
             for it in parsed_items:
@@ -1397,7 +1470,7 @@ async def update_work_order(
             if total_including_gst is None:
                 total_including_gst = round(incl, 2)
 
-    # --- Persist totals ---
+    # 6. Persist totals
     if total_cost is not None:
         wo.total_cost = float(total_cost)
     if total_including_gst is not None:
@@ -1408,11 +1481,6 @@ async def update_work_order(
         db.refresh(wo)
     except Exception as e:
         db.rollback()
-        try:
-            if os.path.exists(pdf_path):
-                os.remove(pdf_path)
-        except:
-            pass
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
     return wo
