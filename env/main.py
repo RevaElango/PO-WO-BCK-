@@ -227,7 +227,7 @@ reset_tokens = {}
 SMTP_SERVER = "smtp.office365.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "Automation@iitmpravartak.net"
-SENDER_PASSWORD = "Itjwh$1%852"  # 🔐 Replace with a secure method in production
+SENDER_PASSWORD = "wxxfgjhcggndkdsl"  # 🔐 Replace with a secure method in production
 
 @app.post("/send-reset-link")
 async def send_reset_link(email: str = Form(...), db: Session = Depends(get_db)):
