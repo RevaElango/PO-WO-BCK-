@@ -238,6 +238,8 @@ class TotalOrder(Base):
     order_type = Column(String(10), nullable=True)
     amendment_no = Column(String(255), nullable=True)
     project_keyword = Column(String(255), nullable=True)
+    asset = Column(String(100), nullable=True)
+
 
 class UploadedOrder(Base):
     __tablename__ = "uploaded_orders"

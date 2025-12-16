@@ -179,7 +179,7 @@ class WorkOrderBase(BaseModel):
     work_order_no: str
     date: date
     quotation_no: Optional[str]
-    email: Optional[EmailStr]
+    email: Optional[str] = None
     quotation_date: Optional[date] = None
     requester_name: str
     indent_date: date
@@ -313,6 +313,7 @@ class TotalOrder(BaseModel):
     order_type: Optional[str]
     amendment_no: Optional[str]
     project_keyword: Optional[str]
+    asset: Optional[str]
  
     class Config:
         orm_mode = True

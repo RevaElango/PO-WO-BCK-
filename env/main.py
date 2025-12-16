@@ -227,7 +227,7 @@ reset_tokens = {}
 SMTP_SERVER = "smtp.office365.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "Automation@iitmpravartak.net"
-SENDER_PASSWORD = "Itjwh$1%852"  # 🔐 Replace with a secure method in production
+SENDER_PASSWORD = "wxxfgjhcggndkdsl"  # 🔐 Replace with a secure method in production
 
 @app.post("/send-reset-link")
 async def send_reset_link(email: str = Form(...), db: Session = Depends(get_db)):
@@ -1059,8 +1059,6 @@ def add_supplier(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user["role_id"] != 1:
-        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
 
     # ✅ Case-insensitive duplicate check
     existing_supplier = db.query(Supplier).filter(
@@ -1092,9 +1090,6 @@ def update_supplier(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Restrict editing to Admin users
-    if current_user["role_id"] != 1:
-        raise HTTPException(status_code=403, detail="Access forbidden: Admins only")
 
     # Find supplier by ID
     supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
@@ -1201,9 +1196,9 @@ async def update_po(
     project_no: str = Form(None),
     prefix: str = Form(None),
     suffix: str = Form(None),
-    final_suffix: str = Form(None),  # ✅ Add this if missing
+    final_suffix: str = Form(None),
     items: str = Form(...),
-    file: UploadFile = File(None),  # ✅ Make OPTIONAL - may not always upload new PDF
+    file: UploadFile = File(None),  # ✅ PDF is OPTIONAL for update
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):    
@@ -1213,25 +1208,27 @@ async def update_po(
         raise HTTPException(status_code=404, detail="Purchase Order not found")
 
     # ✅ 2. Use existing PO number if not provided (DON'T change PO number on edit)
-    effective_po_number = po_number if po_number else po.po_number
+    # But we need to preserve the original PO number for PDF generation
+    original_po_number = po.po_number  # Store original for reference
     
-    # 3. Handle PDF file upload (only if new file provided)
-    if file and file.filename:
+    # 3. Handle PDF file upload (only if new file provided - THIS IS KEY FOR UPDATE)
+    if file and file.filename and file.content_type == "application/pdf":
+        # ✅ For UPDATE: Save the PDF that Angular generated from UI data
         pdf_dir = "uploads/generated_po_files"
         os.makedirs(pdf_dir, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        safe_po_number = effective_po_number.replace('/', '_')
-        pdf_filename = f"generated_po_{safe_po_number}_{timestamp}.pdf"
+        safe_po_number = original_po_number.replace('/', '_')
+        pdf_filename = f"generated_po_{safe_po_number}_{timestamp}_updated.pdf"
         pdf_path = os.path.join(pdf_dir, pdf_filename)
 
         with open(pdf_path, "wb") as f:
             f.write(await file.read())
         
         po.preview_file_path = f"{BASE_URL}/uploads/generated_po_files/{pdf_filename}"
-
+    
     # 4. Update fields (keep existing PO number)
-    po.po_number = effective_po_number  # ✅ Use existing or provided
+    # Don't change po_number from original
     po.po_date = po_date
     po.supplier_name = supplier_name
     po.supplier_address = supplier_address
